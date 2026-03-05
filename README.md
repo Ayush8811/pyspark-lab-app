@@ -27,6 +27,9 @@
 ### Interactive Code Editor & Problem Solving
 <img src="docs/images/practice_ide.png" alt="PySpark Practice IDE" width="800"/>
 
+### AI-Powered Problem Generation
+<img src="docs/images/add_problem.png" alt="AI-Generated Subtopics" width="800"/>
+
 </div>
 
 ---
