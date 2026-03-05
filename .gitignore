@@ -1,0 +1,21 @@
+# Node
+node_modules/
+dist/
+build/
+npm-debug.log
+yarn-error.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+*.db
+*.log
+
+# Editor/OS
+.vscode/
+.DS_Store
+*.swp

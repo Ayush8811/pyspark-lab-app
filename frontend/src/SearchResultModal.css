@@ -1,0 +1,172 @@
+.search-result-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(11, 0, 20, 0.85);
+    /* Midnight Purple Tint */
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.search-result-content {
+    background: rgba(30, 41, 59, 0.4);
+    /* Glass base */
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 800px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7),
+        0 0 40px rgba(168, 85, 247, 0.15);
+    /* Purple Glow */
+    overflow: hidden;
+}
+
+.search-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.search-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.search-title h3 {
+    margin: 0;
+    color: var(--text-main);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.sparkle-icon {
+    color: var(--accent);
+}
+
+.search-body {
+    padding: 2rem;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+/* Loading & Error States */
+.loading-state,
+.error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 0;
+    color: var(--text-muted);
+    gap: 1rem;
+}
+
+.error-state {
+    color: var(--error);
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+    color: var(--accent);
+}
+
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* React Markdown Global Styling */
+.markdown-container {
+    color: #e2e8f0;
+    line-height: 1.6;
+    font-size: 1.05rem;
+}
+
+.markdown-container h1,
+.markdown-container h2,
+.markdown-container h3 {
+    color: #f8fafc;
+    margin-top: 1.5em;
+    margin-bottom: 0.75em;
+    font-weight: 600;
+}
+
+.markdown-container h1 {
+    font-size: 1.8rem;
+}
+
+.markdown-container h2 {
+    font-size: 1.5rem;
+}
+
+.markdown-container h3 {
+    font-size: 1.25rem;
+}
+
+.markdown-container p {
+    margin-bottom: 1rem;
+}
+
+.markdown-container code {
+    font-family: 'Consolas', 'Courier New', monospace;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: #d8b4fe;
+    /* Lavender */
+}
+
+.markdown-container pre {
+    background: #0b0014 !important;
+    /* Extremely dark background for code blocks */
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+}
+
+.markdown-container pre code {
+    background: transparent;
+    padding: 0;
+    color: #a5b4fc;
+    /* Light Indigo for generic pre code */
+    font-size: 0.95rem;
+}
+
+.markdown-container ul,
+.markdown-container ol {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+.markdown-container li {
+    margin-bottom: 0.5rem;
+}
+
+.markdown-container strong {
+    color: var(--accent);
+    font-weight: 700;
+}

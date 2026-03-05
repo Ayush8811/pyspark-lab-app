@@ -1,0 +1,124 @@
+.settings-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(11, 0, 20, 0.85);
+    /* Midnight Purple Tint */
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 3000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.settings-modal-content {
+    background: rgba(30, 41, 59, 0.4);
+    /* Glass base */
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7),
+        0 0 40px rgba(168, 85, 247, 0.15);
+    /* Purple Glow */
+    overflow: hidden;
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.settings-header h2 {
+    margin: 0;
+    color: var(--text-main);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.settings-body {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.settings-error {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--error);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.settings-success {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.input-group label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.input-group input,
+.input-group textarea {
+    padding: 0.75rem 1rem;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.input-group input:focus,
+.input-group textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2);
+}
+
+.char-count {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    align-self: flex-end;
+}
+
+.settings-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+}

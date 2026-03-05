@@ -1,0 +1,202 @@
+.ai-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(11, 0, 20, 0.85);
+    /* Deep midnight purple tint */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* CRT Scanline Effect */
+.scanline {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom,
+            transparent 50%,
+            rgba(168, 85, 247, 0.05) 50%);
+    background-size: 100% 4px;
+    z-index: 1;
+    pointer-events: none;
+    animation: scanlineScroll 10s linear infinite;
+    opacity: 0.6;
+}
+
+@keyframes scanlineScroll {
+    0% {
+        background-position: 0 0;
+    }
+
+    100% {
+        background-position: 0 100vh;
+    }
+}
+
+.ai-loading-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    max-width: 600px;
+    width: 90%;
+}
+
+/* Pulsing CPU Icon */
+.icon-container {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.cpu-icon {
+    color: var(--accent);
+    filter: drop-shadow(0 0 15px rgba(168, 85, 247, 0.8));
+    animation: breath 2s ease-in-out infinite alternate;
+}
+
+.pulse-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    animation: pulseOut 2s cubic-bezier(0.21, 0.53, 0.56, 0.8) infinite;
+}
+
+@keyframes pulseOut {
+    0% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(-50%, -50%) scale(1.8);
+        opacity: 0;
+    }
+}
+
+@keyframes breath {
+    0% {
+        transform: scale(0.95);
+        filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.5));
+    }
+
+    100% {
+        transform: scale(1.05);
+        filter: drop-shadow(0 0 25px rgba(168, 85, 247, 1));
+    }
+}
+
+.ai-loading-title {
+    color: #fff;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    margin: 0;
+}
+
+/* Floating Terminal */
+.terminal-container {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(59, 130, 246, 0.2);
+}
+
+.terminal-header {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.dot.red {
+    background-color: #ef4444;
+}
+
+.dot.yellow {
+    background-color: #f59e0b;
+}
+
+.dot.green {
+    background-color: #10b981;
+}
+
+.terminal-title {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: monospace;
+    margin-left: 0.5rem;
+}
+
+.terminal-body {
+    padding: 1.5rem;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    color: #cbd5e1;
+    min-height: 80px;
+}
+
+.prompt {
+    color: #10b981;
+    font-weight: bold;
+}
+
+.typing-text {
+    color: #60a5fa;
+    /* Light blue */
+}
+
+/* Blinking terminal cursor */
+.cursor {
+    display: inline-block;
+    width: 8px;
+    color: #fff;
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
+}
