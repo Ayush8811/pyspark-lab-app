@@ -3,8 +3,7 @@ name: Sync Backend to Hugging Face Space
 on:
   push:
     branches: [main]
-    paths:
-      - 'backend/**'
+  workflow_dispatch:
 
 jobs:
   sync-to-hf:
