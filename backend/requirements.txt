@@ -9,3 +9,5 @@ pyspark
 huggingface-hub
 psycopg2-binary
 pytest
+openai
+python-dotenv
