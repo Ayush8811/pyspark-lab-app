@@ -7,12 +7,17 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=True)
     hashed_password = Column(String)
     
     # Phase 11 Settings Profile Info
     name = Column(String, nullable=True)
     age = Column(Integer, nullable=True)
     bio = Column(Text, nullable=True)
+    
+    # Forgot Password variables
+    reset_code = Column(String, nullable=True)
+    reset_code_expires = Column(String, nullable=True) # store as ISO string for simplicity
 
     saved_problems = relationship("SavedProblem", back_populates="owner")
     activity_logs = relationship("ActivityLog", back_populates="owner")

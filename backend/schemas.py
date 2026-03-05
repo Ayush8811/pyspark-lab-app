@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any, List
 
 class UserCreate(BaseModel):
     username: str
+    email: Optional[str] = None
     password: str
 
 class SearchQuery(BaseModel):
@@ -11,6 +12,7 @@ class SearchQuery(BaseModel):
 class UserResponse(BaseModel):
     id: int
     username: str
+    email: Optional[str] = None
     name: Optional[str] = None
     age: Optional[int] = None
     bio: Optional[str] = None
@@ -62,3 +64,11 @@ class UserProfileResponse(BaseModel):
     stats: UserStats
     activity_heatmap: Dict[str, int]
     recent_submissions: List[ActivityLogResponse] = []
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+    
+class ResetPasswordRequest(BaseModel):
+    email: str
+    code: str
+    new_password: str

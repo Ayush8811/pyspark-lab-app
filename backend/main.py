@@ -14,6 +14,10 @@ import models
 from database import engine, get_db
 import auth
 import schemas
+from email_utils import send_recovery_email
+
+import random
+import string
 
 # Create tables if they don't exist
 models.Base.metadata.create_all(bind=engine)
@@ -67,8 +71,13 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
         
+    if user.email:
+        email_check = db.query(models.User).filter(models.User.email == user.email).first()
+        if email_check:
+            raise HTTPException(status_code=400, detail="Email already registered")
+            
     hashed_password = auth.get_password_hash(user.password)
-    new_user = models.User(username=user.username, hashed_password=hashed_password)
+    new_user = models.User(username=user.username, email=user.email, hashed_password=hashed_password)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
@@ -107,6 +116,51 @@ def update_user_settings(settings: schemas.UserSettingsUpdate, current_user: mod
     db.commit()
     db.refresh(current_user)
     return current_user
+
+@app.post("/api/auth/forgot-password")
+def forgot_password(req: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == req.email).first()
+    if not user:
+        # Don't leak if email exists, just return success
+        return {"success": True, "message": "If that email exists, a reset code was sent."}
+        
+    # Generate 6 digit code
+    code = ''.join(random.choices(string.digits, k=6))
+    
+    # Set expiration to 15 mins from now
+    expires = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+    
+    user.reset_code = code
+    user.reset_code_expires = expires
+    db.commit()
+    
+    send_recovery_email(req.email, code)
+    return {"success": True, "message": "If that email exists, a reset code was sent."}
+
+@app.post("/api/auth/reset-password")
+def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == req.email, models.User.reset_code == req.code).first()
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid recovery code or email.")
+        
+    # Check expiration
+    if not user.reset_code_expires:
+        raise HTTPException(status_code=400, detail="No active recovery requested.")
+        
+    expires_dt = datetime.fromisoformat(user.reset_code_expires)
+    if datetime.utcnow() > expires_dt:
+        raise HTTPException(status_code=400, detail="Recovery code has expired. Please request a new one.")
+        
+    # Hash new password
+    user.hashed_password = auth.get_password_hash(req.new_password)
+    
+    # Clear recovery fields
+    user.reset_code = None
+    user.reset_code_expires = None
+    db.commit()
+    
+    return {"success": True, "message": "Password successfully reset. You can now log in."}
 
 # ------ APP ROUTES ------
 
