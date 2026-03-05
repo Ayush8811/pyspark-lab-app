@@ -16,8 +16,13 @@ import auth
 import schemas
 from email_utils import send_recovery_email
 
+import os
 import random
 import string
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 
 # Create tables if they don't exist
 models.Base.metadata.create_all(bind=engine)
@@ -101,6 +106,56 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
 @app.get("/api/auth/me", response_model=schemas.UserResponse)
 def get_current_user_info(current_user: models.User = Depends(get_current_user)):
     return current_user
+
+class GoogleTokenRequest(BaseModel):
+    token: str
+
+@app.post("/api/auth/google")
+def google_login(req: GoogleTokenRequest, db: Session = Depends(get_db)):
+    """Verify a Google ID token and create/login the user."""
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            req.token, google_requests.Request(), GOOGLE_CLIENT_ID
+        )
+        
+        google_email = idinfo.get("email")
+        google_name = idinfo.get("name", "")
+        
+        if not google_email:
+            raise HTTPException(status_code=400, detail="Google account has no email.")
+            
+        # Check if user already exists by email
+        user = db.query(models.User).filter(models.User.email == google_email).first()
+        
+        if not user:
+            # Create a new user with email as username (sanitized)
+            base_username = google_email.split("@")[0]
+            username = base_username
+            counter = 1
+            while db.query(models.User).filter(models.User.username == username).first():
+                username = f"{base_username}{counter}"
+                counter += 1
+            
+            # Create with a random password (user will use Google to log in)
+            random_pw = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
+            hashed_pw = auth.get_password_hash(random_pw)
+            
+            user = models.User(
+                username=username,
+                email=google_email,
+                name=google_name,
+                hashed_password=hashed_pw
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        
+        # Issue JWT
+        access_token = auth.create_access_token(data={"sub": user.username})
+        return {"access_token": access_token, "token_type": "bearer"}
+        
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid Google token: {str(e)}")
 
 @app.put("/api/user/settings", response_model=schemas.UserResponse)
 def update_user_settings(settings: schemas.UserSettingsUpdate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):

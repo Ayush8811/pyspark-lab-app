@@ -2,6 +2,7 @@ import React, { useState, useContext } from 'react';
 import axios from 'axios';
 import { AuthContext } from './AuthContext';
 import { API_BASE_URL } from './config';
+import { GoogleLogin } from '@react-oauth/google';
 import './AuthModal.css';
 
 const AuthModal = ({ onClose }) => {
@@ -76,6 +77,22 @@ const AuthModal = ({ onClose }) => {
             }
         } catch (err) {
             setError(err.response?.data?.detail || 'Authentication failed. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleSuccess = async (credentialResponse) => {
+        setError('');
+        setLoading(true);
+        try {
+            const res = await axios.post(`${API_BASE_URL}/api/auth/google`, {
+                token: credentialResponse.credential
+            });
+            login(res.data.access_token);
+            onClose();
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Google sign-in failed. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -172,6 +189,26 @@ const AuthModal = ({ onClose }) => {
                         {getSubmitText()}
                     </button>
                 </form>
+
+                {(viewMode === 'LOGIN' || viewMode === 'REGISTER') && (
+                    <>
+                        <div className="auth-divider" style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '18px 0' }}>
+                            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px' }}>or</span>
+                            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={() => setError('Google sign-in was cancelled.')}
+                                theme="filled_black"
+                                shape="pill"
+                                size="large"
+                                text={viewMode === 'LOGIN' ? 'signin_with' : 'signup_with'}
+                            />
+                        </div>
+                    </>
+                )}
 
                 <div className="auth-toggle">
                     {viewMode === 'LOGIN' && (

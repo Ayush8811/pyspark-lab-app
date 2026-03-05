@@ -13,3 +13,4 @@ openai
 python-dotenv
 PyJWT
 bcrypt
+google-auth
