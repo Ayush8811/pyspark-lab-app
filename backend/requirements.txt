@@ -12,3 +12,4 @@ pytest
 openai
 python-dotenv
 PyJWT
+bcrypt
