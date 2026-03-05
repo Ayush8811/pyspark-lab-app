@@ -29,6 +29,7 @@ def run_migrations():
                 conn.commit()
                 print(f"[OK] Added column '{col_name}'")
             except Exception as e:
+                conn.rollback()
                 error_msg = str(e).lower()
                 if "duplicate" in error_msg or "already exists" in error_msg:
                     print(f"[SKIP] Column '{col_name}' already exists")
