@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import Editor from '@monaco-editor/react';
-import { Play, Loader2, Sparkles, Plus, PanelLeftClose, PanelLeft, ChevronRight, Tags, ArrowLeft, User, LogOut, Bookmark, Trash2 } from 'lucide-react';
+import { Play, Loader2, Sparkles, Plus, PanelLeftClose, PanelLeft, ChevronRight, Tags, ArrowLeft, User, LogOut, Bookmark, Trash2, Smartphone } from 'lucide-react';
 import axios from 'axios';
 import './App.css';
 import { AuthContext } from './AuthContext';
@@ -8,6 +8,7 @@ import AuthModal from './AuthModal';
 import ProfileDashboard from './ProfileDashboard';
 import LandingPage from './LandingPage';
 import AILoadingOverlay from './AILoadingOverlay';
+import { useDeviceType } from './hooks/useDeviceType';
 import { API_BASE_URL } from './config';
 
 const TOPICS = [
@@ -37,11 +38,35 @@ const TOPICS = [
   { id: 'hof', label: 'High-Order Functions', category: 'Advanced' },
 ];
 
+const SQL_TOPICS = [
+  // Basic
+  { id: 'sql_select', label: 'SELECT & WHERE', category: 'Basic' },
+  { id: 'sql_order', label: 'ORDER BY & LIMIT', category: 'Basic' },
+  { id: 'sql_distinct', label: 'DISTINCT & Aliases', category: 'Basic' },
+  { id: 'sql_nulls', label: 'NULL Handling', category: 'Basic' },
+
+  // Intermediate
+  { id: 'sql_inner_join', label: 'INNER JOIN', category: 'Intermediate' },
+  { id: 'sql_outer_join', label: 'LEFT / RIGHT JOIN', category: 'Intermediate' },
+  { id: 'sql_groupby', label: 'GROUP BY & HAVING', category: 'Intermediate' },
+  { id: 'sql_agg', label: 'Aggregations (COUNT, SUM, AVG)', category: 'Intermediate' },
+  { id: 'sql_case', label: 'CASE WHEN', category: 'Intermediate' },
+
+  // Advanced
+  { id: 'sql_subquery', label: 'Subqueries', category: 'Advanced' },
+  { id: 'sql_cte', label: 'CTEs (WITH clause)', category: 'Advanced' },
+  { id: 'sql_window', label: 'Window Functions', category: 'Advanced' },
+  { id: 'sql_set', label: 'UNION & Set Operations', category: 'Advanced' },
+  { id: 'sql_self_join', label: 'Self Joins', category: 'Advanced' },
+];
+
 function App() {
   const { user, token, logout } = useContext(AuthContext);
+  const { isMobile } = useDeviceType();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [currentView, setCurrentView] = useState('landing'); // 'landing' | 'ide'
+  const [codingMode, setCodingMode] = useState('pyspark'); // 'pyspark' | 'sql'
 
   const [problems, setProblems] = useState([]);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -85,6 +110,11 @@ function App() {
     };
   }, [isDraggingV, isDraggingH]);
 
+  // Auto-close sidebar on mobile
+  useEffect(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
+
   // Sidebar & View states
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isAddingProblem, setIsAddingProblem] = useState(false);
@@ -125,15 +155,17 @@ function App() {
     setDynamicSubtopics([]);
     setLoadingSubtopics(true);
 
+    const subtopicsEndpoint = codingMode === 'sql'
+      ? `${API_BASE_URL}/api/sql/topics/subtopics`
+      : `${API_BASE_URL}/api/topics/subtopics`;
+
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/topics/subtopics`, {
-        // Send the label of the topic to the LLM (e.g. "Window Functions")
+      const res = await axios.get(subtopicsEndpoint, {
         params: { topic: topicObj.label, difficulty: selectedDifficulty }
       });
       setDynamicSubtopics(res.data.subtopics);
     } catch (err) {
       console.error("Failed to generate LLM subtopics", err);
-      // fallback handled cleanly empty list instead of messy UI
     } finally {
       setLoadingSubtopics(false);
     }
@@ -144,7 +176,10 @@ function App() {
     setLoadingMoreSubtopics(true);
     try {
       const excludeStr = dynamicSubtopics.join(",");
-      const res = await axios.get(`${API_BASE_URL}/api/topics/subtopics`, {
+      const subtopicsEndpoint = codingMode === 'sql'
+        ? `${API_BASE_URL}/api/sql/topics/subtopics`
+        : `${API_BASE_URL}/api/topics/subtopics`;
+      const res = await axios.get(subtopicsEndpoint, {
         params: { topic: activeTopic.label, difficulty: selectedDifficulty, exclude: excludeStr }
       });
       // Append the new unique subtopics to existing ones
@@ -202,8 +237,12 @@ function App() {
 
     setLoading(true);
 
+    const generateEndpoint = codingMode === 'sql'
+      ? `${API_BASE_URL}/api/sql/problem/generate`
+      : `${API_BASE_URL}/api/problem/generate`;
+
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/problem/generate`, {
+      const res = await axios.get(generateEndpoint, {
         params: { topic: combinedTopics, difficulty: selectedDifficulty }
       });
 
@@ -211,7 +250,8 @@ function App() {
         ...res.data,
         ux_id: Date.now(),
         userCode: res.data.initial_code || '',
-        result: null
+        result: null,
+        language: codingMode
       };
 
       setProblems(prev => [...prev, newProblem]);
@@ -226,22 +266,26 @@ function App() {
   };
 
   useEffect(() => {
-    // Fetch initial problem on load
+    // Fetch initial problem on load — respects the selected codingMode
     if (problems.length === 0) {
-      // simulate an initial load from backend
-      axios.get(`${API_BASE_URL}/api/problem/generate`, {
-        params: { topic: 'Joins', difficulty: 'Easy' }
+      const initEndpoint = codingMode === 'sql'
+        ? `${API_BASE_URL}/api/sql/problem/generate`
+        : `${API_BASE_URL}/api/problem/generate`;
+      const initTopic = codingMode === 'sql' ? 'SELECT & WHERE' : 'Joins';
+      axios.get(initEndpoint, {
+        params: { topic: initTopic, difficulty: 'Easy' }
       }).then(res => {
         setProblems([{
           ...res.data,
           ux_id: Date.now(),
           userCode: res.data.initial_code || '',
-          result: null
+          result: null,
+          language: codingMode
         }]);
         setActiveIndex(0);
       }).catch(console.error);
     }
-  }, []);
+  }, [codingMode]);
 
   const activeProblem = problems[activeIndex];
 
@@ -266,7 +310,8 @@ function App() {
         tags: 'User Saved',
         datasets: activeProblem.datasets,
         expected_output: activeProblem.expected_output,
-        initial_code: activeProblem.initial_code || activeProblem.userCode
+        initial_code: activeProblem.initial_code || activeProblem.userCode,
+        language: activeProblem.language || 'pyspark'
       };
 
       await axios.post(`${API_BASE_URL}/api/problem/save`, payload, {
@@ -298,7 +343,8 @@ function App() {
         ux_id: `saved-${Date.now()}-${idx}`,
         userCode: p.initial_code || '',
         id: `DB-${p.id}`,
-        result: null
+        result: null,
+        language: p.language || 'pyspark'
       }));
       setProblems(mapped);
       if (mapped.length > 0) setActiveIndex(0);
@@ -337,8 +383,12 @@ function App() {
     setExecuting(true);
     updateActiveProblem({ result: null });
 
+    const executeEndpoint = activeProblem.language === 'sql'
+      ? `${API_BASE_URL}/api/sql/problem/execute`
+      : `${API_BASE_URL}/api/problem/execute`;
+
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/problem/execute`, {
+      const res = await axios.post(executeEndpoint, {
         code: activeProblem.userCode,
         datasets: activeProblem.datasets || {}
       });
@@ -364,8 +414,12 @@ function App() {
     setSubmitting(true);
     updateActiveProblem({ result: null });
 
+    const submitEndpoint = activeProblem.language === 'sql'
+      ? `${API_BASE_URL}/api/sql/problem/submit`
+      : `${API_BASE_URL}/api/problem/submit`;
+
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/problem/submit`, {
+      const res = await axios.post(submitEndpoint, {
         code: activeProblem.userCode,
         datasets: activeProblem.datasets || {},
         expected_output: activeProblem.expected_output || [],
@@ -413,7 +467,8 @@ function App() {
 
 
 
-  const categories = Array.from(new Set(TOPICS.map(t => t.category)));
+  const currentTopics = codingMode === 'sql' ? SQL_TOPICS : TOPICS;
+  const categories = Array.from(new Set(currentTopics.map(t => t.category)));
 
   const getDifficultyColor = (diff) => {
     switch (diff) {
@@ -448,7 +503,10 @@ function App() {
     return (
       <>
         <LandingPage
-          onStartPracticing={() => setCurrentView('ide')}
+          onStartPracticing={(mode = 'pyspark') => {
+            setCodingMode(mode);
+            setCurrentView('ide');
+          }}
           onShowAuthModal={() => setShowAuthModal(true)}
           onShowProfileModal={() => setShowProfileModal(true)}
           user={user}
@@ -520,12 +578,17 @@ function App() {
                   >
                     <div className="problem-item-details">
                       <span className="problem-item-title">{p.title}</span>
-                      <span
-                        className="problem-item-id"
-                        style={{ color: getDifficultyColor(p.difficulty) }}
-                      >
-                        {p.id}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span className={`lang-badge lang-badge-${p.language || 'pyspark'}`}>
+                          {p.language === 'sql' ? 'SQL' : 'PySpark'}
+                        </span>
+                        <span
+                          className="problem-item-id"
+                          style={{ color: getDifficultyColor(p.difficulty) }}
+                        >
+                          {p.id}
+                        </span>
+                      </div>
                     </div>
                     {showingSaved ? (
                       <button
@@ -588,6 +651,32 @@ function App() {
                 <ArrowLeft size={24} />
               </button>
               <h1>Customize Your Next Challenge</h1>
+              <div className="mode-toggle" style={{ marginLeft: 'auto' }}>
+                <button
+                  className={`mode-btn ${codingMode === 'pyspark' ? 'active' : ''}`}
+                  onClick={() => {
+                    setCodingMode('pyspark');
+                    setActiveCategory(null);
+                    setActiveTopic(null);
+                    setSelectedTags([]);
+                    setDynamicSubtopics([]);
+                  }}
+                >
+                  PySpark
+                </button>
+                <button
+                  className={`mode-btn ${codingMode === 'sql' ? 'active' : ''}`}
+                  onClick={() => {
+                    setCodingMode('sql');
+                    setActiveCategory(null);
+                    setActiveTopic(null);
+                    setSelectedTags([]);
+                    setDynamicSubtopics([]);
+                  }}
+                >
+                  SQL
+                </button>
+              </div>
             </div>
 
             <div className="add-problem-body">
@@ -629,7 +718,7 @@ function App() {
                 <div className="config-section fade-in">
                   <h3>3. Select Core Topic</h3>
                   <div className="pill-container">
-                    {TOPICS.filter(t => t.category === activeCategory).map(t => {
+                    {currentTopics.filter(t => t.category === activeCategory).map(t => {
                       const isSelected = activeTopic?.id === t.id;
                       return (
                         <button
@@ -761,7 +850,7 @@ function App() {
           /* Split Screen IDE View */
           <>
             {/* Left Panel - Problem Description */}
-            <div className="left-panel" style={{ width: `${leftPanelWidth}%` }}>
+            <div className="left-panel" style={isMobile ? undefined : { width: `${leftPanelWidth}%` }}>
               <div className="panel-header">
                 <h2>Problem Description</h2>
               </div>
@@ -816,100 +905,110 @@ function App() {
               </div>
             </div>
 
-            {/* Vertical Resizer */}
-            <div
-              className="vertical-resizer"
-              onMouseDown={() => setIsDraggingV(true)}
-            />
+            {/* Vertical Resizer — desktop only */}
+            {!isMobile && (
+              <div
+                className="vertical-resizer"
+                onMouseDown={() => setIsDraggingV(true)}
+              />
+            )}
 
-            {/* Right Panel - Code & Results */}
-            <div className="right-panel" style={{ width: `${100 - leftPanelWidth}%`, position: 'relative' }}>
+            {/* Right Panel — desktop only; mobile shows coding restriction banner */}
+            {isMobile ? (
+              <div className="mobile-coding-banner">
+                <Smartphone size={48} className="mobile-coding-banner-icon" />
+                <h3>Switch to a desktop to code</h3>
+                <p>The code editor and submission are only available on a laptop or desktop screen. You can still read problems and create new ones here.</p>
+              </div>
+            ) : (
+              <div className="right-panel" style={{ width: `${100 - leftPanelWidth}%`, position: 'relative' }}>
 
-              {/* Grading Overlay (Phase 5) */}
-              {activeProblem?.result?.type === 'submit' && (
-                <div className="grading-overlay" onClick={() => updateActiveProblem({ result: null })}>
-                  <div className="grading-content" onClick={e => e.stopPropagation()}>
-                    {activeProblem.result.passed ? (
-                      <>
-                        <div className="grading-emoji">🎉</div>
-                        <h2 className="grading-message">Congratulations!</h2>
-                        <p className="grading-details" style={{ color: 'var(--success)' }}>All test cases passed! Your PySpark logic perfectly matched the expected output.</p>
-                      </>
+                {/* Grading Overlay (Phase 5) */}
+                {activeProblem?.result?.type === 'submit' && (
+                  <div className="grading-overlay" onClick={() => updateActiveProblem({ result: null })}>
+                    <div className="grading-content" onClick={e => e.stopPropagation()}>
+                      {activeProblem.result.passed ? (
+                        <>
+                          <div className="grading-emoji">🎉</div>
+                          <h2 className="grading-message">Congratulations!</h2>
+                          <p className="grading-details" style={{ color: 'var(--success)' }}>All test cases passed! Your {activeProblem?.language === 'sql' ? 'SQL query' : 'PySpark logic'} perfectly matched the expected output.</p>
+                        </>
+                      ) : (
+                        <>
+                          <div className="grading-emoji">😔</div>
+                          <h2 className="grading-message">Not quite right! Try Again.</h2>
+                          <p className="grading-details" style={{ color: 'var(--error)' }}>{activeProblem.result.message}</p>
+                        </>
+                      )}
+                      <button className="btn btn-submit" onClick={() => updateActiveProblem({ result: null })} style={{ margin: '0 auto' }}>
+                        Continue
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="editor-container" style={{ flex: 'none', height: `${editorHeight}%` }}>
+                  <div className="panel-header">
+                    <h2>{activeProblem?.language === 'sql' ? 'query.sql' : 'main.py'}</h2>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button className="btn btn-success" onClick={runCode} disabled={executing || submitting || !activeProblem}>
+                        {executing ? <Loader2 size={16} className="spinner" /> : <><Play size={16} /> Run Code</>}
+                      </button>
+                      <button className="btn btn-submit" onClick={submitCode} disabled={executing || submitting || !activeProblem}>
+                        {submitting ? <Loader2 size={16} className="spinner" /> : 'Submit Code'}
+                      </button>
+                    </div>
+                  </div>
+                  <Editor
+                    height="calc(100% - 60px)"
+                    language={activeProblem?.language === 'sql' ? 'sql' : 'python'}
+                    theme="space-theme"
+                    beforeMount={handleEditorBeforeMount}
+                    value={activeProblem?.userCode || ''}
+                    onChange={(val) => updateActiveProblem({ userCode: val })}
+                    options={{
+                      minimap: { enabled: false },
+                      fontSize: 14,
+                      fontFamily: "'Consolas', 'Courier New', monospace",
+                      scrollBeyondLastLine: false,
+                    }}
+                  />
+                </div>
+
+                {/* Horizontal Resizer */}
+                <div
+                  className="horizontal-resizer"
+                  onMouseDown={() => setIsDraggingH(true)}
+                />
+
+                <div className="results-container" style={{ flex: 'none', height: `${100 - editorHeight}%` }}>
+                  <div className="panel-header">
+                    <h2>Execution Results</h2>
+                    {activeProblem?.result && (
+                      <span className={activeProblem.result.success ? "success-text" : "error-text"}>
+                        {activeProblem.result.success
+                          ? (activeProblem.result.type === 'run' ? "Success ✓✓" : "Success")
+                          : "Error"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="results-content">
+                    {!activeProblem?.result ? (
+                      <span style={{ color: 'var(--text-muted)' }}>Run your code to see results here...</span>
                     ) : (
                       <>
-                        <div className="grading-emoji">😔</div>
-                        <h2 className="grading-message">Not quite right! Try Again.</h2>
-                        <p className="grading-details" style={{ color: 'var(--error)' }}>{activeProblem.result.message}</p>
+                        {activeProblem.result.output && (
+                          <pre className="output-pre">{activeProblem.result.output}</pre>
+                        )}
+                        {activeProblem.result.error && (
+                          <pre className="error-text" style={{ marginTop: '1rem', whiteSpace: 'pre-wrap' }}>{activeProblem.result.error}</pre>
+                        )}
                       </>
                     )}
-                    <button className="btn btn-submit" onClick={() => updateActiveProblem({ result: null })} style={{ margin: '0 auto' }}>
-                      Continue
-                    </button>
                   </div>
                 </div>
-              )}
-
-              <div className="editor-container" style={{ flex: 'none', height: `${editorHeight}%` }}>
-                <div className="panel-header">
-                  <h2>main.py</h2>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button className="btn btn-success" onClick={runCode} disabled={executing || submitting || !activeProblem}>
-                      {executing ? <Loader2 size={16} className="spinner" /> : <><Play size={16} /> Run Code</>}
-                    </button>
-                    <button className="btn btn-submit" onClick={submitCode} disabled={executing || submitting || !activeProblem}>
-                      {submitting ? <Loader2 size={16} className="spinner" /> : 'Submit Code'}
-                    </button>
-                  </div>
-                </div>
-                <Editor
-                  height="calc(100% - 60px)"
-                  defaultLanguage="python"
-                  theme="space-theme"
-                  beforeMount={handleEditorBeforeMount}
-                  value={activeProblem?.userCode || ''}
-                  onChange={(val) => updateActiveProblem({ userCode: val })}
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 14,
-                    fontFamily: "'Consolas', 'Courier New', monospace",
-                    scrollBeyondLastLine: false,
-                  }}
-                />
               </div>
-
-              {/* Horizontal Resizer */}
-              <div
-                className="horizontal-resizer"
-                onMouseDown={() => setIsDraggingH(true)}
-              />
-
-              <div className="results-container" style={{ flex: 'none', height: `${100 - editorHeight}%` }}>
-                <div className="panel-header">
-                  <h2>Execution Results</h2>
-                  {activeProblem?.result && (
-                    <span className={activeProblem.result.success ? "success-text" : "error-text"}>
-                      {activeProblem.result.success
-                        ? (activeProblem.result.type === 'run' ? "Success ✓✓" : "Success")
-                        : "Error"}
-                    </span>
-                  )}
-                </div>
-                <div className="results-content">
-                  {!activeProblem?.result ? (
-                    <span style={{ color: 'var(--text-muted)' }}>Run your code to see results here...</span>
-                  ) : (
-                    <>
-                      {activeProblem.result.output && (
-                        <pre className="output-pre">{activeProblem.result.output}</pre>
-                      )}
-                      {activeProblem.result.error && (
-                        <pre className="error-text" style={{ marginTop: '1rem', whiteSpace: 'pre-wrap' }}>{activeProblem.result.error}</pre>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
+            )}
           </>
         )}
       </div>

@@ -38,6 +38,7 @@ class SavedProblem(Base):
     datasets = Column(JSON)
     expected_output = Column(JSON)
     initial_code = Column(Text)
+    language = Column(String, default="pyspark")  # "pyspark" | "sql"
     
     # Link to parent
     owner = relationship("User", back_populates="saved_problems")

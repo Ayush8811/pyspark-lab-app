@@ -69,13 +69,13 @@ const LandingPage = ({ onStartPracticing, onShowAuthModal, onShowProfileModal, u
             <nav className="glass-nav">
                 <div className="nav-logo">
                     <Sparkles className="logo-icon" size={24} />
-                    <span className="logo-text">PySpark Platform</span>
+                    <span className="logo-text">DataLab</span>
                 </div>
 
                 <div className="nav-links">
                     <a href="#" className="active">Home</a>
                     <a href="#features">Features</a>
-                    <a href="#" onClick={(e) => { e.preventDefault(); onStartPracticing(); }}>Sandbox</a>
+                    <a href="#" onClick={(e) => { e.preventDefault(); onStartPracticing('pyspark'); }}>Sandbox</a>
                 </div>
 
                 <div className="nav-auth">
@@ -108,7 +108,7 @@ const LandingPage = ({ onStartPracticing, onShowAuthModal, onShowProfileModal, u
                                 </div>
                             )}
 
-                            <button className="glass-btn primary-gradient" onClick={onStartPracticing}>
+                            <button className="glass-btn primary-gradient" onClick={() => onStartPracticing('pyspark')}>
                                 Enter IDE <ArrowRight size={16} style={{ marginLeft: '6px' }} />
                             </button>
                         </div>
@@ -123,12 +123,12 @@ const LandingPage = ({ onStartPracticing, onShowAuthModal, onShowProfileModal, u
 
             {/* Hero Section */}
             <div className="hero-section">
-                <div className="hero-badge">🚀 The Ultimate IT Learning Destination</div>
+                <div className="hero-badge">🚀 The Ultimate Data Engineering Learning Destination</div>
                 <h1 className="hero-title">
-                    Unlock Your <span className="text-gradient">PySpark</span> Potential
+                    Master <span className="text-gradient">PySpark & SQL</span> — in your browser
                 </h1>
                 <p className="hero-subtitle">
-                    Master big data engineering with interactive, AI-generated coding challenges. Write real PySpark code, execute instantly, and track your progress in the browser.
+                    AI-generated coding challenges for both PySpark and SQL. Write real code, execute instantly against live datasets, and track your progress — no setup required.
                 </p>
 
                 <div className="hero-search-bar">
@@ -136,7 +136,7 @@ const LandingPage = ({ onStartPracticing, onShowAuthModal, onShowProfileModal, u
                         <Search className="search-icon" size={20} />
                         <input
                             type="text"
-                            placeholder="Ask the LLM anything! (e.g., How do Broadcast Joins work?)"
+                            placeholder="Ask the LLM anything! (e.g., How do Window Functions work?)"
                             className="search-input"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -146,7 +146,7 @@ const LandingPage = ({ onStartPracticing, onShowAuthModal, onShowProfileModal, u
                     {searchQuery.trim() ? (
                         <button className="search-btn" onClick={handleSearch}>Search Docs</button>
                     ) : (
-                        <button className="search-btn" onClick={onStartPracticing}>Start Practicing</button>
+                        <button className="search-btn" onClick={() => onStartPracticing('pyspark')}>Start Practicing</button>
                     )}
                 </div>
             </div>
@@ -155,6 +155,34 @@ const LandingPage = ({ onStartPracticing, onShowAuthModal, onShowProfileModal, u
                 <div className="stat-pill"><span className="stat-num">50+</span> Core Topics</div>
                 <div className="stat-pill"><span className="stat-num">Infinite</span> AI Scenarios</div>
                 <div className="stat-pill"><span className="stat-num">Real-time</span> Evaluation</div>
+            </div>
+
+            {/* Mode Selector Cards */}
+            <div className="mode-selector-section">
+                <h2 className="mode-selector-title">Choose Your Sandbox</h2>
+                <div className="mode-selector-cards">
+                    <div className="glass-card mode-card mode-card-pyspark" onClick={() => onStartPracticing('pyspark')}>
+                        <div className="mode-card-icon">
+                            <Code size={36} />
+                        </div>
+                        <h3>Practice PySpark</h3>
+                        <p>DataFrame API, Window Functions, Joins, UDFs, Aggregations and more. Write Python code backed by a real Apache Spark engine.</p>
+                        <div className="mode-card-cta">
+                            Start PySpark <ArrowRight size={16} />
+                        </div>
+                    </div>
+
+                    <div className="glass-card mode-card mode-card-sql" onClick={() => onStartPracticing('sql')}>
+                        <div className="mode-card-icon">
+                            <TerminalSquare size={36} />
+                        </div>
+                        <h3>Practice SQL</h3>
+                        <p>SELECT, JOINs, CTEs, subqueries, window functions and more. Write standard SQL that runs on real tables powered by Spark SQL.</p>
+                        <div className="mode-card-cta">
+                            Start SQL <ArrowRight size={16} />
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Feature Cards Horizontal Row */}
@@ -166,15 +194,15 @@ const LandingPage = ({ onStartPracticing, onShowAuthModal, onShowProfileModal, u
                             <Sparkles size={28} />
                         </div>
                         <h3>AI Generation</h3>
-                        <p>Our autonomous engine scales difficulty dynamically, generating infinite hyper-customized PySpark scenarios tailored to your skill level.</p>
+                        <p>Our autonomous engine generates infinite, hyper-customized PySpark and SQL scenarios tailored to your chosen topic and skill level.</p>
                     </div>
 
                     <div className="glass-card feature-card">
                         <div className="feature-icon-wrapper" style={{ color: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)' }}>
                             <TerminalSquare size={28} />
                         </div>
-                        <h3>Live Sandbox</h3>
-                        <p>Write and execute real PySpark code instantly within your browser. Forget local clusters and docker setups—just code.</p>
+                        <h3>Dual Sandbox</h3>
+                        <p>Execute real PySpark code or run SQL queries instantly — both powered by the same Apache Spark engine, no local setup needed.</p>
                     </div>
 
                     <div className="glass-card feature-card">
@@ -182,7 +210,7 @@ const LandingPage = ({ onStartPracticing, onShowAuthModal, onShowProfileModal, u
                             <CheckCircle size={28} />
                         </div>
                         <h3>Instant Grading</h3>
-                        <p>Our custom evaluation algorithm scrapes your Python namespace and performs strict, order-agnostic row-by-row validation.</p>
+                        <p>Our evaluation engine performs strict, order-agnostic row-by-row validation on both PySpark DataFrames and SQL query results.</p>
                     </div>
 
                     <div className="glass-card feature-card">
