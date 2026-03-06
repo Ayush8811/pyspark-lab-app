@@ -8,6 +8,8 @@ import AuthModal from './AuthModal';
 import ProfileDashboard from './ProfileDashboard';
 import LandingPage from './LandingPage';
 import AILoadingOverlay from './AILoadingOverlay';
+import MobileRestrictionOverlay from './MobileRestrictionOverlay';
+import { useDeviceType } from './hooks/useDeviceType';
 import { API_BASE_URL } from './config';
 
 const TOPICS = [
@@ -39,6 +41,7 @@ const TOPICS = [
 
 function App() {
   const { user, token, logout } = useContext(AuthContext);
+  const { isMobile } = useDeviceType();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [currentView, setCurrentView] = useState('landing'); // 'landing' | 'ide'
@@ -457,6 +460,10 @@ function App() {
         {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
       </>
     );
+  }
+
+  if (isMobile) {
+    return <MobileRestrictionOverlay onGoBack={() => setCurrentView('landing')} />;
   }
 
   return (

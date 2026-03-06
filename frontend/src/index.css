@@ -99,3 +99,21 @@ body {
     transform: scale(1.05);
   }
 }
+
+/* ============================================
+   GLOBAL RESPONSIVE BASE
+   ============================================ */
+
+/* Allow scrolling on mobile (landing page, modals, dashboard) */
+@media (max-width: 1023px) {
+  body {
+    overflow: auto;
+  }
+}
+
+/* Ensure touch targets are accessible */
+@media (max-width: 768px) {
+  button, a {
+    min-height: 44px;
+  }
+}
