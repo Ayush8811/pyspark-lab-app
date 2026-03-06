@@ -419,3 +419,122 @@
     background: rgba(239, 68, 68, 0.1);
     color: var(--error);
 }
+
+/* ---- Mode Selector Section ---- */
+.mode-selector-section {
+    padding: 3rem 2rem 1rem;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+.mode-selector-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.mode-selector-cards {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.mode-card {
+    width: 320px;
+    padding: 2rem;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    text-align: left;
+}
+
+.mode-card:hover {
+    transform: translateY(-4px);
+}
+
+.mode-card-pyspark {
+    border-color: rgba(168, 85, 247, 0.4);
+}
+
+.mode-card-pyspark:hover {
+    border-color: #a855f7;
+    box-shadow: 0 0 24px rgba(168, 85, 247, 0.2);
+}
+
+.mode-card-sql {
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+.mode-card-sql:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 0 24px rgba(59, 130, 246, 0.2);
+}
+
+.mode-card-icon {
+    padding: 0.75rem;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.25rem;
+}
+
+.mode-card-pyspark .mode-card-icon {
+    color: #a855f7;
+    background: rgba(168, 85, 247, 0.1);
+}
+
+.mode-card-sql .mode-card-icon {
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.mode-card h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0;
+}
+
+.mode-card p {
+    font-size: 0.9rem;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.mode-card-cta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-top: 0.5rem;
+}
+
+.mode-card-pyspark .mode-card-cta {
+    color: #a855f7;
+}
+
+.mode-card-sql .mode-card-cta {
+    color: #3b82f6;
+}
+
+@media (max-width: 768px) {
+    .mode-selector-cards {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .mode-card {
+        width: 100%;
+        max-width: 400px;
+    }
+}
