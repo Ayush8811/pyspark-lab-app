@@ -1,14 +1,13 @@
 <div align="center">
 
-# 🚀 PySpark Lab Platform
+# 🚀 Spark Lab Platform
 
 **Master Big Data Engineering with AI-Powered Interactive Challenges**
 
 [![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-Vercel-black?style=for-the-badge)](https://pyspark-lab-app.vercel.app/)
 [![Backend](https://img.shields.io/badge/🤗_Backend-HuggingFace-yellow?style=for-the-badge)](https://huggingface.co/spaces/ayush260201/pyspark-lab)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](#license)
 
-*Write real PySpark code, execute instantly, and track your progress — all in the browser.*
+*Write real PySpark & SQL code, execute instantly, and track your progress — all in the browser.*
 
 </div>
 
@@ -39,11 +38,18 @@
 ### 🧠 AI-Generated Coding Challenges
 - **Dynamic problem generation** powered by OpenAI GPT — no two sessions are the same
 - **Multiple difficulty levels**: Easy, Medium, Hard
-- **Topic-aware**: Covers Joins, Aggregations, Window Functions, Filters, and more
+- **Topic-aware**: Covers PySpark DataFrame API, SQL Selects, Joins, Window Functions, and more
 - **Subtopic drilling**: AI generates focused subtopics within each category
 
-### ⚡ Real-Time PySpark Execution
-- **Server-side Apache Spark** execution — runs actual PySpark code, not simulations
+### ⚔️ Twin Challenge Multiplayer Mode
+- **Invite a Friend**: Send a unique 6-character room code to challenge a friend.
+- **Side-by-side Coding**: See each other's cursor and code in real-time using live WebSockets.
+- **Voice & Text Chat**: Strategize or talk trash instantly using built-in WebRTC voice calling and text chat.
+- **Real-Time Execution**: Both players run code against the exact same PySpark instance and datasets.
+
+### ⚡ Real-Time PySpark & SQL Execution
+- **Dual Sandbox Mode**: Seamlessly switch between writing native PySpark DataFrame logic or standard Spark SQL queries.
+- **Server-side Apache Spark** execution — runs actual scalable code, not simulations
 - **Monaco code editor** (same as VS Code) with syntax highlighting
 - **Instant feedback** with execution results displayed as formatted tables
 - **Auto-grading** with order-agnostic, type-forgiving comparison logic
@@ -252,12 +258,6 @@ pyspark-lab-app/
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
