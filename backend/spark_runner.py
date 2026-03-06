@@ -131,3 +131,82 @@ def execute_pyspark_code(code: str, datasets: dict):
         "error": error_msg,
         "final_df_rows": final_df_rows
     }
+
+
+def execute_sql_code(sql_code: str, datasets: dict):
+    """
+    Executes a user SQL query using Spark SQL and captures output.
+    Datasets are loaded as temp views, then the user's SQL runs via spark.sql().
+    """
+    try:
+        for table_name, data in datasets.items():
+            if data and isinstance(data, list):
+                all_keys = set()
+                for d in data:
+                    all_keys.update(d.keys())
+                standardized_data = []
+                for d in data:
+                    std_row = {k: d.get(k, None) for k in all_keys}
+                    standardized_data.append(std_row)
+                df = spark.createDataFrame(standardized_data)
+                df.createOrReplaceTempView(table_name)
+    except Exception:
+        return {
+            "success": False,
+            "output": "",
+            "error": f"Failed to initialize datasets: {traceback.format_exc()}"
+        }
+
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    redirected_output = io.StringIO()
+    sys.stdout = redirected_output
+    sys.stderr = redirected_output
+
+    error_msg = None
+    success = False
+    final_df_rows = None
+
+    try:
+        final_df = spark.sql(sql_code)
+        success = True
+    except Exception:
+        error_msg = traceback.format_exc()
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+
+    output = redirected_output.getvalue()
+
+    if success:
+        try:
+            import math
+            pdf = final_df.toPandas()
+            raw_records = pdf.to_dict('records')
+            final_df_rows = []
+            for row in raw_records:
+                cleaned_row = {}
+                for k, v in row.items():
+                    if isinstance(v, float) and math.isnan(v):
+                        cleaned_row[k] = None
+                    else:
+                        cleaned_row[k] = v
+                final_df_rows.append(cleaned_row)
+
+            try:
+                show_str = final_df._jdf.showString(20, 20, False)
+                if output.strip():
+                    output += "\n"
+                output += f"--- Query Result ---\n{show_str}"
+            except Exception:
+                pass
+        except Exception as e:
+            error_msg = f"Query executed but failed to parse result: {str(e)}"
+            success = False
+
+    return {
+        "success": success,
+        "output": output,
+        "error": error_msg,
+        "final_df_rows": final_df_rows
+    }
