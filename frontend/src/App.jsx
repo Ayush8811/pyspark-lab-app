@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import Editor from '@monaco-editor/react';
-import { Play, Loader2, Sparkles, Plus, PanelLeftClose, PanelLeft, ChevronRight, Tags, ArrowLeft, User, LogOut, Bookmark, Trash2 } from 'lucide-react';
+import { Play, Loader2, Sparkles, Plus, PanelLeftClose, PanelLeft, ChevronRight, Tags, ArrowLeft, User, LogOut, Bookmark, Trash2, Smartphone } from 'lucide-react';
 import axios from 'axios';
 import './App.css';
 import { AuthContext } from './AuthContext';
@@ -8,7 +8,6 @@ import AuthModal from './AuthModal';
 import ProfileDashboard from './ProfileDashboard';
 import LandingPage from './LandingPage';
 import AILoadingOverlay from './AILoadingOverlay';
-import MobileRestrictionOverlay from './MobileRestrictionOverlay';
 import { useDeviceType } from './hooks/useDeviceType';
 import { API_BASE_URL } from './config';
 
@@ -87,6 +86,11 @@ function App() {
       document.body.style.userSelect = '';
     };
   }, [isDraggingV, isDraggingH]);
+
+  // Auto-close sidebar on mobile
+  useEffect(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
 
   // Sidebar & View states
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -462,10 +466,6 @@ function App() {
     );
   }
 
-  if (isMobile) {
-    return <MobileRestrictionOverlay onGoBack={() => setCurrentView('landing')} />;
-  }
-
   return (
     <div className="app-container">
       {/* App-Wide Dynamic Space Background */}
@@ -768,7 +768,7 @@ function App() {
           /* Split Screen IDE View */
           <>
             {/* Left Panel - Problem Description */}
-            <div className="left-panel" style={{ width: `${leftPanelWidth}%` }}>
+            <div className="left-panel" style={isMobile ? undefined : { width: `${leftPanelWidth}%` }}>
               <div className="panel-header">
                 <h2>Problem Description</h2>
               </div>
@@ -823,13 +823,22 @@ function App() {
               </div>
             </div>
 
-            {/* Vertical Resizer */}
-            <div
-              className="vertical-resizer"
-              onMouseDown={() => setIsDraggingV(true)}
-            />
+            {/* Vertical Resizer — desktop only */}
+            {!isMobile && (
+              <div
+                className="vertical-resizer"
+                onMouseDown={() => setIsDraggingV(true)}
+              />
+            )}
 
-            {/* Right Panel - Code & Results */}
+            {/* Right Panel — desktop only; mobile shows coding restriction banner */}
+            {isMobile ? (
+              <div className="mobile-coding-banner">
+                <Smartphone size={48} className="mobile-coding-banner-icon" />
+                <h3>Switch to a desktop to code</h3>
+                <p>The code editor and submission are only available on a laptop or desktop screen. You can still read problems and create new ones here.</p>
+              </div>
+            ) : (
             <div className="right-panel" style={{ width: `${100 - leftPanelWidth}%`, position: 'relative' }}>
 
               {/* Grading Overlay (Phase 5) */}
@@ -917,6 +926,7 @@ function App() {
                 </div>
               </div>
             </div>
+            )}
           </>
         )}
       </div>

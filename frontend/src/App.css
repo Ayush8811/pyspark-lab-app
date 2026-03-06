@@ -639,10 +639,87 @@
 }
 
 /* ============================================
+   RESPONSIVE — Mobile IDE Layout (< 1024px)
+   The code editor is replaced by a banner on mobile.
+   Problem description and Add Problem are fully usable.
+   ============================================ */
+
+@media (max-width: 1023px) {
+  .app-container {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  /* Sidebar stays as a sticky column on the left */
+  .sidebar {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+  }
+
+  .main-content {
+    flex-direction: column;
+    height: auto;
+    overflow-y: visible;
+  }
+
+  /* Problem description takes full width and scrolls naturally */
+  .left-panel {
+    width: 100% !important;
+    height: auto !important;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .problem-content {
+    overflow-y: visible;
+    max-height: none;
+  }
+
+  /* Add Problem page scrolls naturally */
+  .add-problem-page {
+    overflow-y: visible;
+    height: auto;
+  }
+}
+
+/* Mobile coding restriction banner */
+.mobile-coding-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+  background: var(--panel-bg);
+  border-top: 1px solid var(--border);
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.mobile-coding-banner-icon {
+  color: var(--accent);
+  opacity: 0.6;
+}
+
+.mobile-coding-banner h3 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.mobile-coding-banner p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  max-width: 320px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* ============================================
    RESPONSIVE — Add Problem Page (1024px–1280px)
-   The split-panel IDE is desktop-only (>= 1024px)
-   so we only need to handle the Add Problem page
-   at the lower end of the desktop range.
    ============================================ */
 
 @media (max-width: 1280px) {
