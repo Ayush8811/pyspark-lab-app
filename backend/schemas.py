@@ -37,6 +37,7 @@ class SavedProblemCreate(BaseModel):
     datasets: Dict[str, Any]
     expected_output: List[Dict[str, Any]]
     initial_code: str
+    language: str = "pyspark"
     
 class SavedProblemResponse(SavedProblemCreate):
     id: int

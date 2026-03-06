@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 
-from spark_runner import execute_pyspark_code
-from ai_generator import generate_problem, generate_search_response, generate_subtopics
+from spark_runner import execute_pyspark_code, execute_sql_code
+from ai_generator import generate_problem, generate_search_response, generate_subtopics, generate_sql_problem, generate_sql_subtopics
 
 # DB and Auth imports
 import models
@@ -320,6 +320,106 @@ def search_pyspark(req: schemas.SearchQuery):
                 }
                 
     # Phase 7: Log activity on success if user is logged in
+    if user:
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        new_log = models.ActivityLog(user_id=user.id, date=today_str, difficulty=req.difficulty, problem_title=req.title)
+        db.add(new_log)
+        db.commit()
+
+    return {
+        "success": True,
+        "passed": True,
+        "user_output": user_rows,
+        "message": "All test cases passed!"
+    }
+
+# ------ SQL ROUTES ------
+
+@app.get("/api/sql/topics/subtopics")
+def get_sql_subtopics(topic: str, difficulty: str = "Medium", exclude: str = None):
+    subtopics = generate_sql_subtopics(topic, difficulty, exclude)
+    return {"subtopics": subtopics}
+
+@app.get("/api/sql/problem/generate")
+def get_sql_problem(topic: str = "general", difficulty: str = "Medium"):
+    return generate_sql_problem(topic, difficulty)
+
+class SqlExecuteRequest(BaseModel):
+    code: str
+    datasets: Dict[str, List[Dict[str, Any]]]
+
+@app.post("/api/sql/problem/execute")
+def execute_sql(req: SqlExecuteRequest):
+    return execute_sql_code(req.code, req.datasets)
+
+class SqlSubmitRequest(BaseModel):
+    code: str
+    datasets: Dict[str, List[Dict[str, Any]]]
+    expected_output: List[Dict[str, Any]]
+    difficulty: str = "Medium"
+    title: Optional[str] = "Unknown Problem"
+
+@app.post("/api/sql/problem/submit")
+def submit_sql(req: SqlSubmitRequest, user: Optional[models.User] = Depends(get_optional_user), db: Session = Depends(get_db)):
+    result = execute_sql_code(req.code, req.datasets)
+
+    if not result["success"]:
+        return {
+            "success": False,
+            "passed": False,
+            "user_output": None,
+            "message": "Query execution failed. Check your SQL syntax."
+        }
+
+    if result["final_df_rows"] is None:
+        return {
+            "success": True,
+            "passed": False,
+            "user_output": None,
+            "message": "Grading failed: No result returned from your query."
+        }
+
+    user_rows = result["final_df_rows"]
+    expected_rows = req.expected_output
+
+    if len(user_rows) != len(expected_rows):
+        return {
+            "success": True,
+            "passed": False,
+            "user_output": user_rows,
+            "message": f"Row count mismatch. Expected {len(expected_rows)}, got {len(user_rows)}."
+        }
+
+    def normalize_val(v):
+        if v is None:
+            return "None"
+        try:
+            fv = float(v)
+            if fv.is_integer():
+                return str(int(fv))
+            return str(fv)
+        except (ValueError, TypeError):
+            return str(v)
+
+    def sort_rows(rows):
+        return sorted(rows, key=lambda r: str(sorted([(k, normalize_val(v)) for k, v in r.items()])))
+
+    user_rows_sorted = sort_rows(user_rows)
+    expected_rows_sorted = sort_rows(expected_rows)
+
+    for u_row, e_row in zip(user_rows_sorted, expected_rows_sorted):
+        for key, expected_val in e_row.items():
+            if key not in u_row:
+                return {
+                    "success": True, "passed": False, "user_output": user_rows,
+                    "message": f"Missing column '{key}' in your output."
+                }
+            if normalize_val(u_row[key]) != normalize_val(expected_val):
+                return {
+                    "success": True, "passed": False, "user_output": user_rows,
+                    "message": f"Data mismatch. Expected '{expected_val}' for column '{key}', got '{u_row[key]}'."
+                }
+
     if user:
         today_str = datetime.now().strftime("%Y-%m-%d")
         new_log = models.ActivityLog(user_id=user.id, date=today_str, difficulty=req.difficulty, problem_title=req.title)
