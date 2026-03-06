@@ -669,6 +669,12 @@ async def websocket_room(websocket: WebSocket, room_code: str, token: str = Quer
                     "username": username,
                     "code": code
                 }, exclude=username)
+            elif msg_type == "generating_problem":
+                # Notify opponent that the other player is generating
+                await room_manager.broadcast(room_code.upper(), {
+                    "type": "opponent_generating",
+                    "username": username
+                }, exclude=username)
 
             elif msg_type == "set_problem":
                 # A player selected a problem — save to DB and broadcast

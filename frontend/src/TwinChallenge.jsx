@@ -80,6 +80,7 @@ function TwinChallenge({ onBack }) {
     // --- Problem Selection State (full sandbox-style) ---
     const [showProblemPicker, setShowProblemPicker] = useState(false);
     const [generatingProblem, setGeneratingProblem] = useState(false);
+    const [opponentGenerating, setOpponentGenerating] = useState(false);
     const [selectedMode, setSelectedMode] = useState('pyspark');
     const [selectedDifficulty, setSelectedDifficulty] = useState('Easy');
     const [selectedTags, setSelectedTags] = useState([]);   // [{topic, subtopics: []}]
@@ -177,7 +178,12 @@ function TwinChallenge({ onBack }) {
                     setOpponentResult(null);
                     setOpponentCode('');
                     setShowProblemPicker(false);
+                    setOpponentGenerating(false);
                     setPhase('challenge');
+                    break;
+
+                case 'opponent_generating':
+                    setOpponentGenerating(true);
                     break;
 
                 case 'opponent_run_result':
@@ -601,6 +607,73 @@ function TwinChallenge({ onBack }) {
         return acc;
     }, {});
 
+    // --- Shared Chat & Voice UI ---
+    const renderChatAndVoice = () => (
+        <>
+            {/* Hidden audio element for WebRTC remote audio */}
+            <audio ref={remoteAudioRef} autoPlay />
+
+            {/* Voice Controls (floating) */}
+            <div className="twin-voice-controls">
+                {!voiceActive ? (
+                    <button className="twin-voice-btn twin-voice-start" onClick={startVoiceCall} title="Start Voice Call">
+                        <Phone size={18} />
+                    </button>
+                ) : (
+                    <>
+                        <button className={`twin-voice-btn ${isMuted ? 'twin-voice-muted' : 'twin-voice-active'}`} onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'}>
+                            {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+                        </button>
+                        <button className="twin-voice-btn twin-voice-end" onClick={endVoiceCall} title="End Call">
+                            <PhoneOff size={18} />
+                        </button>
+                    </>
+                )}
+            </div>
+
+            {/* Chat Toggle Button */}
+            <button className="twin-chat-toggle" onClick={() => setShowChat(!showChat)}>
+                <MessageCircle size={20} />
+                {unreadCount > 0 && <span className="twin-chat-badge">{unreadCount}</span>}
+            </button>
+
+            {/* Chat Panel (slide-in) */}
+            {showChat && (
+                <div className="twin-chat-panel fade-in">
+                    <div className="twin-chat-header">
+                        <h3><MessageCircle size={16} /> Chat</h3>
+                        <button className="icon-btn" onClick={() => setShowChat(false)}><X size={16} /></button>
+                    </div>
+                    <div className="twin-chat-messages">
+                        {chatMessages.length === 0 && (
+                            <div className="twin-chat-empty">No messages yet. Say hi! 👋</div>
+                        )}
+                        {chatMessages.map((msg, i) => (
+                            <div key={i} className={`twin-chat-msg ${msg.isMe ? 'twin-chat-mine' : 'twin-chat-theirs'}`}>
+                                <span className="twin-chat-sender">{msg.isMe ? 'You' : msg.sender}</span>
+                                <span className="twin-chat-text">{msg.message}</span>
+                            </div>
+                        ))}
+                        <div ref={chatEndRef} />
+                    </div>
+                    <div className="twin-chat-input-row">
+                        <input
+                            type="text"
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()}
+                            placeholder="Type a message..."
+                            className="twin-chat-input"
+                        />
+                        <button className="twin-chat-send" onClick={sendChatMessage}>
+                            <Send size={16} />
+                        </button>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+
     // --- Shared Problem Picker UI ---
     const renderProblemPicker = (isInline = false) => (
         <div className={isInline ? "twin-quick-picker fade-in" : "twin-problem-picker fade-in"}>
@@ -784,18 +857,30 @@ function TwinChallenge({ onBack }) {
 
                         {isOpponentConnected && (
                             <div className="twin-problem-picker-area">
-                                {!showProblemPicker ? (
-                                    <button className="btn btn-generate twin-generate-btn" onClick={() => setShowProblemPicker(true)}>
-                                        <Swords size={18} /> Pick a Problem
-                                    </button>
+                                {opponentGenerating ? (
+                                    <div className="twin-problem-picker fade-in" style={{ textAlign: 'center' }}>
+                                        <div className="twin-subtopic-loading" style={{ justifyContent: 'center' }}>
+                                            <Loader2 size={18} className="spinner" />
+                                            <span>Opponent is generating a problem...</span>
+                                        </div>
+                                    </div>
                                 ) : (
-                                    renderProblemPicker()
+                                    !showProblemPicker ? (
+                                        <button className="btn btn-generate twin-generate-btn" onClick={() => setShowProblemPicker(true)}>
+                                            <Swords size={18} /> Pick a Problem
+                                        </button>
+                                    ) : (
+                                        renderProblemPicker()
+                                    )
                                 )}
                                 {error && <div className="twin-error" style={{ marginTop: '1rem' }}>{error}</div>}
                             </div>
                         )}
                     </div>
                 </div>
+
+                {/* Always show Chat & Voice when wait phase has connected players */}
+                {isOpponentConnected && renderChatAndVoice()}
             </div>
         );
     }
@@ -825,14 +910,14 @@ function TwinChallenge({ onBack }) {
                     </div>
                 </div>
                 <div className="twin-header-right">
-                    <button className="btn btn-submit" onClick={() => setShowProblemPicker(!showProblemPicker)}>
-                        New Problem
+                    <button className="btn btn-submit" onClick={() => setShowProblemPicker(!showProblemPicker)} disabled={opponentGenerating}>
+                        {opponentGenerating ? 'Opponent Generating...' : 'New Problem'}
                     </button>
                 </div>
             </div>
 
             {/* Inline Problem Picker Dropdown */}
-            {showProblemPicker && renderProblemPicker(true)}
+            {showProblemPicker && !opponentGenerating && renderProblemPicker(true)}
 
             <div className="twin-challenge-body">
                 {/* Left Panel — Problem Description */}
@@ -1001,67 +1086,8 @@ function TwinChallenge({ onBack }) {
                 </div>
             </div>
 
-            {/* Hidden audio element for WebRTC remote audio */}
-            <audio ref={remoteAudioRef} autoPlay />
-
-            {/* Voice Controls (floating) */}
-            <div className="twin-voice-controls">
-                {!voiceActive ? (
-                    <button className="twin-voice-btn twin-voice-start" onClick={startVoiceCall} title="Start Voice Call">
-                        <Phone size={18} />
-                    </button>
-                ) : (
-                    <>
-                        <button className={`twin-voice-btn ${isMuted ? 'twin-voice-muted' : 'twin-voice-active'}`} onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'}>
-                            {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
-                        </button>
-                        <button className="twin-voice-btn twin-voice-end" onClick={endVoiceCall} title="End Call">
-                            <PhoneOff size={18} />
-                        </button>
-                    </>
-                )}
-            </div>
-
-            {/* Chat Toggle Button */}
-            <button className="twin-chat-toggle" onClick={() => setShowChat(!showChat)}>
-                <MessageCircle size={20} />
-                {unreadCount > 0 && <span className="twin-chat-badge">{unreadCount}</span>}
-            </button>
-
-            {/* Chat Panel (slide-in) */}
-            {showChat && (
-                <div className="twin-chat-panel fade-in">
-                    <div className="twin-chat-header">
-                        <h3><MessageCircle size={16} /> Chat</h3>
-                        <button className="icon-btn" onClick={() => setShowChat(false)}><X size={16} /></button>
-                    </div>
-                    <div className="twin-chat-messages">
-                        {chatMessages.length === 0 && (
-                            <div className="twin-chat-empty">No messages yet. Say hi! 👋</div>
-                        )}
-                        {chatMessages.map((msg, i) => (
-                            <div key={i} className={`twin-chat-msg ${msg.isMe ? 'twin-chat-mine' : 'twin-chat-theirs'}`}>
-                                <span className="twin-chat-sender">{msg.isMe ? 'You' : msg.sender}</span>
-                                <span className="twin-chat-text">{msg.message}</span>
-                            </div>
-                        ))}
-                        <div ref={chatEndRef} />
-                    </div>
-                    <div className="twin-chat-input-row">
-                        <input
-                            type="text"
-                            value={chatInput}
-                            onChange={(e) => setChatInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()}
-                            placeholder="Type a message..."
-                            className="twin-chat-input"
-                        />
-                        <button className="twin-chat-send" onClick={sendChatMessage}>
-                            <Send size={16} />
-                        </button>
-                    </div>
-                </div>
-            )}
+            {/* Always show Chat & Voice in challenge phase */}
+            {renderChatAndVoice()}
         </div>
     );
 }
