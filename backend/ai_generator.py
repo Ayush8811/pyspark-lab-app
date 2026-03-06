@@ -52,7 +52,7 @@ def generate_subtopics(topic: str, difficulty: str, exclude: str = None) -> list
     except Exception as e:
         print(f"Error calling OpenAI API: {e}")
         # Fallback subtopics if API fails
-        return [f"Basic {category}", f"Advanced {category}", f"Applied {category}"]
+        return [f"Basic {topic}", f"Advanced {topic}", f"Applied {topic}"]
 
 def generate_problem(topic: str = "general", difficulty: str = "Medium"):
     """Dynamically generate a complete PySpark practice problem using LLMs."""

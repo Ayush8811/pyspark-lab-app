@@ -698,7 +698,7 @@ function App() {
                       key={diff}
                       className={`segment-btn ${selectedDifficulty === diff ? 'active' : ''}`}
                       onClick={() => setSelectedDifficulty(diff)}
-                      style={selectedDifficulty === diff ? { borderColor: getDifficultyColor(diff), color: getDifficultyColor(diff) } : {}}
+                      style={selectedDifficulty === diff ? { borderColor: getDifficultyColor(diff), backgroundColor: getDifficultyColor(diff), color: '#ffffff' } : {}}
                     >
                       {diff}
                     </button>

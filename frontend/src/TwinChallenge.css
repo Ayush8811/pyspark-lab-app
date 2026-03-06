@@ -564,6 +564,37 @@
     font-size: 0.85rem;
 }
 
+.twin-header-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fb923c;
+}
+
+/* ====== COMMON BUTTONS ====== */
+.twin-back-btn {
+    position: absolute;
+    top: 1.5rem;
+    left: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.2s;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.twin-back-btn:hover {
+    color: #fb923c;
+    background: rgba(251, 146, 60, 0.1);
+}
+
+/* ====== LOBBY PHASE ====== */
 .twin-room-badge {
     font-size: 0.75rem;
     font-weight: 700;
