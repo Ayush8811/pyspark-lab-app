@@ -122,3 +122,38 @@
 .spinner {
     animation: spin 1s linear infinite;
 }
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 600px) {
+  .settings-modal-overlay {
+    padding: 1rem;
+    align-items: flex-end;
+  }
+
+  .settings-modal-content {
+    border-radius: 20px 20px 0 0;
+    max-width: 100%;
+  }
+
+  .settings-header {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .settings-body {
+    padding: 1.5rem;
+    gap: 1.25rem;
+  }
+
+  .settings-footer {
+    flex-direction: column-reverse;
+    gap: 0.75rem;
+  }
+
+  .settings-footer .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

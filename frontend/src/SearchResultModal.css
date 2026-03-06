@@ -170,3 +170,55 @@
     color: var(--accent);
     font-weight: 700;
 }
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+  .search-result-overlay {
+    padding: 1rem;
+    align-items: flex-end;
+  }
+
+  .search-result-content {
+    max-height: 92vh;
+    border-radius: 20px 20px 0 0;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .search-result-overlay {
+    padding: 0;
+  }
+
+  .search-result-content {
+    max-height: 95vh;
+  }
+
+  .search-header {
+    padding: 1.25rem;
+  }
+
+  .search-body {
+    padding: 1.25rem;
+  }
+
+  .markdown-container {
+    font-size: 0.95rem;
+  }
+
+  .markdown-container h1 {
+    font-size: 1.5rem;
+  }
+
+  .markdown-container h2 {
+    font-size: 1.25rem;
+  }
+
+  .markdown-container pre {
+    padding: 1rem;
+    font-size: 0.875rem;
+  }
+}
