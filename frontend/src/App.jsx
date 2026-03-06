@@ -267,7 +267,8 @@ function App() {
 
   useEffect(() => {
     // Fetch initial problem on load — respects the selected codingMode
-    if (problems.length === 0) {
+    // Only fetch when in IDE view and no problems exist yet
+    if (currentView === 'ide' && problems.length === 0) {
       const initEndpoint = codingMode === 'sql'
         ? `${API_BASE_URL}/api/sql/problem/generate`
         : `${API_BASE_URL}/api/problem/generate`;
@@ -285,7 +286,7 @@ function App() {
         setActiveIndex(0);
       }).catch(console.error);
     }
-  }, [codingMode]);
+  }, [codingMode, currentView]);
 
   const activeProblem = problems[activeIndex];
 
@@ -505,6 +506,8 @@ function App() {
         <LandingPage
           onStartPracticing={(mode = 'pyspark') => {
             setCodingMode(mode);
+            setProblems([]);
+            setActiveIndex(-1);
             setCurrentView('ide');
           }}
           onShowAuthModal={() => setShowAuthModal(true)}
