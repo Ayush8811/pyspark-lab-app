@@ -1,5 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, Dict, Any, List
+import json
 
 class UserCreate(BaseModel):
     username: str
@@ -41,6 +42,21 @@ class SavedProblemCreate(BaseModel):
     
 class SavedProblemResponse(SavedProblemCreate):
     id: int
+    
+    # SQLite stores JSON columns as plain strings; parse them back for Pydantic
+    @field_validator('datasets', mode='before')
+    @classmethod
+    def parse_datasets(cls, v):
+        if isinstance(v, str):
+            return json.loads(v)
+        return v
+
+    @field_validator('expected_output', mode='before')
+    @classmethod
+    def parse_expected_output(cls, v):
+        if isinstance(v, str):
+            return json.loads(v)
+        return v
     
     class Config:
         from_attributes = True
