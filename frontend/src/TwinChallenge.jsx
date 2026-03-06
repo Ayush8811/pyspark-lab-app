@@ -5,12 +5,52 @@ import Editor from '@monaco-editor/react';
 import axios from 'axios';
 import {
     Copy, Check, Users, ArrowLeft, Play, Loader2, Send, Wifi, WifiOff,
-    Swords, Crown, UserPlus, LogOut
+    Swords, Crown, UserPlus, LogOut, Tags, X
 } from 'lucide-react';
 import './TwinChallenge.css';
 
 // WebSocket URL from API_BASE_URL (convert http→ws, https→wss)
 const WS_BASE_URL = API_BASE_URL.replace(/^http/, 'ws');
+
+// Same topic lists as the main sandbox
+const TOPICS = [
+    { id: 'select_filter', label: 'Select & Filter', category: 'Foundational' },
+    { id: 'sorting', label: 'Sorting & Ordering', category: 'Foundational' },
+    { id: 'nulls', label: 'Handling Nulls', category: 'Foundational' },
+    { id: 'casting', label: 'Type Casting & Schema', category: 'Foundational' },
+    { id: 'duplicates', label: 'Remove Duplicates', category: 'Foundational' },
+    { id: 'math', label: 'Basic Math Operations', category: 'Foundational' },
+    { id: 'agg', label: 'Aggregations & GroupBy', category: 'Intermediate' },
+    { id: 'join', label: 'Joins', category: 'Intermediate' },
+    { id: 'date', label: 'Date & Time Operations', category: 'Intermediate' },
+    { id: 'string', label: 'String Manipulations', category: 'Intermediate' },
+    { id: 'pivot', label: 'Pivot & Unpivot', category: 'Intermediate' },
+    { id: 'logic', label: 'Conditional Logic (when/otherwise)', category: 'Intermediate' },
+    { id: 'unions', label: 'Unions', category: 'Intermediate' },
+    { id: 'window', label: 'Window Functions', category: 'Advanced' },
+    { id: 'complex', label: 'Array & Map Operations', category: 'Advanced' },
+    { id: 'json', label: 'JSON Parsing', category: 'Advanced' },
+    { id: 'udf', label: 'UDFs (User Defined Functions)', category: 'Advanced' },
+    { id: 'optimiz', label: 'Performance & Optimization', category: 'Advanced' },
+    { id: 'hof', label: 'High-Order Functions', category: 'Advanced' },
+];
+
+const SQL_TOPICS = [
+    { id: 'sql_select', label: 'SELECT & WHERE', category: 'Basic' },
+    { id: 'sql_order', label: 'ORDER BY & LIMIT', category: 'Basic' },
+    { id: 'sql_distinct', label: 'DISTINCT & Aliases', category: 'Basic' },
+    { id: 'sql_nulls', label: 'NULL Handling', category: 'Basic' },
+    { id: 'sql_inner_join', label: 'INNER JOIN', category: 'Intermediate' },
+    { id: 'sql_outer_join', label: 'LEFT / RIGHT JOIN', category: 'Intermediate' },
+    { id: 'sql_groupby', label: 'GROUP BY & HAVING', category: 'Intermediate' },
+    { id: 'sql_agg', label: 'Aggregations (COUNT, SUM, AVG)', category: 'Intermediate' },
+    { id: 'sql_case', label: 'CASE WHEN', category: 'Intermediate' },
+    { id: 'sql_subquery', label: 'Subqueries', category: 'Advanced' },
+    { id: 'sql_cte', label: 'CTEs (WITH clause)', category: 'Advanced' },
+    { id: 'sql_window', label: 'Window Functions', category: 'Advanced' },
+    { id: 'sql_set', label: 'UNION & Set Operations', category: 'Advanced' },
+    { id: 'sql_self_join', label: 'Self Joins', category: 'Advanced' },
+];
 
 function TwinChallenge({ onBack }) {
     const { user, token } = useContext(AuthContext);
@@ -19,16 +59,17 @@ function TwinChallenge({ onBack }) {
     const [phase, setPhase] = useState('lobby'); // lobby | waiting | challenge
     const [roomCode, setRoomCode] = useState('');
     const [joinInput, setJoinInput] = useState('');
-    const [roomInfo, setRoomInfo] = useState(null); // { creator, joiner, status }
+    const [roomInfo, setRoomInfo] = useState(null);
     const [error, setError] = useState('');
     const [copied, setCopied] = useState(false);
+    const [roomClosedMsg, setRoomClosedMsg] = useState('');
 
     // --- Challenge State ---
     const [problem, setProblem] = useState(null);
     const [language, setLanguage] = useState('pyspark');
     const [myCode, setMyCode] = useState('');
     const [opponentCode, setOpponentCode] = useState('');
-    const [activeTab, setActiveTab] = useState('mine'); // mine | opponent
+    const [activeTab, setActiveTab] = useState('mine');
     const [executing, setExecuting] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [myResult, setMyResult] = useState(null);
@@ -36,15 +77,22 @@ function TwinChallenge({ onBack }) {
     const [connectedUsers, setConnectedUsers] = useState([]);
     const [opponentUsername, setOpponentUsername] = useState('');
 
-    // --- Problem Selection State ---
+    // --- Problem Selection State (full sandbox-style) ---
     const [showProblemPicker, setShowProblemPicker] = useState(false);
     const [generatingProblem, setGeneratingProblem] = useState(false);
     const [selectedMode, setSelectedMode] = useState('pyspark');
     const [selectedDifficulty, setSelectedDifficulty] = useState('Easy');
+    const [selectedTags, setSelectedTags] = useState([]);   // [{topic, subtopics: []}]
+    const [activeTopic, setActiveTopic] = useState(null);   // topic with subtopic picker open
+    const [subtopicSuggestions, setSubtopicSuggestions] = useState([]);
+    const [loadingSubtopics, setLoadingSubtopics] = useState(false);
 
     // WebSocket ref
     const wsRef = useRef(null);
     const codeUpdateTimer = useRef(null);
+
+    // Current topics list based on mode
+    const currentTopics = selectedMode === 'sql' ? SQL_TOPICS : TOPICS;
 
     // Determine opponent's username
     useEffect(() => {
@@ -89,6 +137,18 @@ function TwinChallenge({ onBack }) {
 
                 case 'player_disconnected':
                     setConnectedUsers(msg.connected_users || []);
+                    break;
+
+                case 'room_closed':
+                    // Opponent left — room is deleted. Show message and go back to lobby.
+                    setRoomClosedMsg(msg.message || 'Opponent left. Room closed.');
+                    setPhase('lobby');
+                    setRoomCode('');
+                    setRoomInfo(null);
+                    setProblem(null);
+                    setMyCode('');
+                    setOpponentCode('');
+                    setConnectedUsers([]);
                     break;
 
                 case 'opponent_code':
@@ -136,6 +196,7 @@ function TwinChallenge({ onBack }) {
     // --- Room Actions ---
     const createRoom = async () => {
         setError('');
+        setRoomClosedMsg('');
         try {
             const res = await axios.post(`${API_BASE_URL}/api/room/create`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -151,6 +212,7 @@ function TwinChallenge({ onBack }) {
 
     const joinRoom = async () => {
         setError('');
+        setRoomClosedMsg('');
         const code = joinInput.trim().toUpperCase();
         if (!code || code.length < 4) {
             setError('Please enter a valid room code.');
@@ -166,7 +228,7 @@ function TwinChallenge({ onBack }) {
                 joiner: res.data.joiner,
                 status: res.data.status
             });
-            setPhase(res.data.status === 'active' ? 'waiting' : 'waiting');
+            setPhase('waiting');
             connectWebSocket(res.data.room_code);
         } catch (err) {
             setError(err.response?.data?.detail || 'Failed to join room.');
@@ -195,7 +257,6 @@ function TwinChallenge({ onBack }) {
     // --- Code Sync ---
     const handleCodeChange = (value) => {
         setMyCode(value);
-        // Debounce code updates to avoid flooding WS
         if (codeUpdateTimer.current) clearTimeout(codeUpdateTimer.current);
         codeUpdateTimer.current = setTimeout(() => {
             if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -204,15 +265,70 @@ function TwinChallenge({ onBack }) {
         }, 300);
     };
 
+    // --- Topic / Subtopic Selection (matching sandbox) ---
+    const toggleTopic = async (topic) => {
+        const isSelected = selectedTags.some(t => t.topic.id === topic.id);
+        if (isSelected) {
+            // Deselect
+            setSelectedTags(prev => prev.filter(t => t.topic.id !== topic.id));
+            if (activeTopic?.id === topic.id) {
+                setActiveTopic(null);
+                setSubtopicSuggestions([]);
+            }
+        } else {
+            // Select and fetch subtopics
+            setSelectedTags(prev => [...prev, { topic, subtopics: [] }]);
+            setActiveTopic(topic);
+            setLoadingSubtopics(true);
+            try {
+                const endpoint = selectedMode === 'sql'
+                    ? `${API_BASE_URL}/api/sql/subtopics`
+                    : `${API_BASE_URL}/api/subtopics`;
+                const res = await axios.get(endpoint, { params: { topic: topic.label } });
+                setSubtopicSuggestions(res.data.subtopics || []);
+            } catch {
+                setSubtopicSuggestions([]);
+            } finally {
+                setLoadingSubtopics(false);
+            }
+        }
+    };
+
+    const toggleSubtopic = (subtopicLabel) => {
+        if (!activeTopic) return;
+        setSelectedTags(prev => prev.map(item => {
+            if (item.topic.id === activeTopic.id) {
+                const has = item.subtopics.includes(subtopicLabel);
+                return {
+                    ...item,
+                    subtopics: has
+                        ? item.subtopics.filter(s => s !== subtopicLabel)
+                        : [...item.subtopics, subtopicLabel]
+                };
+            }
+            return item;
+        }));
+    };
+
     // --- Problem Generation ---
     const generateProblem = async () => {
         setGeneratingProblem(true);
+        setError('');
         try {
+            // Build topic string from selected tags (same logic as sandbox)
+            const combinedTopicsList = selectedTags.map(t => {
+                if (t.subtopics.length > 0) {
+                    return `${t.topic.label} (${t.subtopics.join(", ")})`;
+                }
+                return t.topic.label;
+            });
+            const combinedTopics = combinedTopicsList.length > 0 ? combinedTopicsList.join("; ") : 'general';
+
             const endpoint = selectedMode === 'sql'
                 ? `${API_BASE_URL}/api/sql/problem/generate`
                 : `${API_BASE_URL}/api/problem/generate`;
             const res = await axios.get(endpoint, {
-                params: { topic: 'general', difficulty: selectedDifficulty }
+                params: { topic: combinedTopics, difficulty: selectedDifficulty }
             });
 
             // Send problem to both players via WebSocket
@@ -245,7 +361,6 @@ function TwinChallenge({ onBack }) {
             const res = await axios.post(endpoint, payload);
             const result = { ...res.data, type: 'run' };
             setMyResult(result);
-            // Share result with opponent
             if (wsRef.current?.readyState === WebSocket.OPEN) {
                 wsRef.current.send(JSON.stringify({ type: 'run_result', result }));
             }
@@ -301,6 +416,100 @@ function TwinChallenge({ onBack }) {
 
     const isOpponentConnected = connectedUsers.length >= 2;
 
+    // Group topics by category for rendering
+    const groupedTopics = currentTopics.reduce((acc, topic) => {
+        if (!acc[topic.category]) acc[topic.category] = [];
+        acc[topic.category].push(topic);
+        return acc;
+    }, {});
+
+    // --- Shared Problem Picker UI ---
+    const renderProblemPicker = (isInline = false) => (
+        <div className={isInline ? "twin-quick-picker fade-in" : "twin-problem-picker fade-in"}>
+            <div className="twin-picker-section">
+                <div className="twin-picker-row">
+                    <label>Mode</label>
+                    <div className="mode-toggle">
+                        <button className={`mode-btn ${selectedMode === 'pyspark' ? 'active' : ''}`} onClick={() => { setSelectedMode('pyspark'); setSelectedTags([]); setActiveTopic(null); setSubtopicSuggestions([]); }}>PySpark</button>
+                        <button className={`mode-btn ${selectedMode === 'sql' ? 'active' : ''}`} onClick={() => { setSelectedMode('sql'); setSelectedTags([]); setActiveTopic(null); setSubtopicSuggestions([]); }}>SQL</button>
+                    </div>
+                </div>
+
+                <div className="twin-picker-row">
+                    <label>Difficulty</label>
+                    <div className="segmented-control">
+                        {['Easy', 'Medium', 'Hard'].map(d => (
+                            <button key={d} className={`segment-btn ${selectedDifficulty === d ? 'active' : ''}`} onClick={() => setSelectedDifficulty(d)}>{d}</button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="twin-topics-section">
+                    <label><Tags size={14} /> Topics {selectedTags.length > 0 && <span className="twin-tag-count">{selectedTags.length}</span>}</label>
+                    {Object.entries(groupedTopics).map(([category, topics]) => (
+                        <div key={category} className="twin-topic-group">
+                            <span className="twin-topic-category">{category}</span>
+                            <div className="pill-container">
+                                {topics.map(topic => (
+                                    <button
+                                        key={topic.id}
+                                        className={`pill ${selectedTags.some(t => t.topic.id === topic.id) ? 'active' : ''}`}
+                                        onClick={() => toggleTopic(topic)}
+                                    >
+                                        {topic.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Subtopic suggestions */}
+                {activeTopic && (
+                    <div className="twin-subtopics-section fade-in">
+                        <label>Subtopics for <strong>{activeTopic.label}</strong></label>
+                        {loadingSubtopics ? (
+                            <div className="twin-subtopic-loading"><Loader2 size={14} className="spinner" /> Loading subtopics...</div>
+                        ) : (
+                            <div className="pill-container">
+                                {subtopicSuggestions.map(sub => {
+                                    const tagEntry = selectedTags.find(t => t.topic.id === activeTopic.id);
+                                    const isSelected = tagEntry?.subtopics.includes(sub);
+                                    return (
+                                        <button
+                                            key={sub}
+                                            className={`pill sub-pill ${isSelected ? 'selected' : ''}`}
+                                            onClick={() => toggleSubtopic(sub)}
+                                        >
+                                            {sub}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Selected summary */}
+                {selectedTags.length > 0 && (
+                    <div className="twin-selected-summary">
+                        {selectedTags.map(tag => (
+                            <span key={tag.topic.id} className="twin-selected-tag">
+                                {tag.topic.label}
+                                {tag.subtopics.length > 0 && ` (${tag.subtopics.join(', ')})`}
+                                <X size={12} className="twin-tag-remove" onClick={() => toggleTopic(tag.topic)} />
+                            </span>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <button className="btn btn-generate twin-start-btn" onClick={generateProblem} disabled={generatingProblem}>
+                {generatingProblem ? <><Loader2 size={16} className="spinner" /> Generating...</> : <><Swords size={16} /> {problem ? 'New Problem' : 'Start Challenge'}</>}
+            </button>
+        </div>
+    );
+
     // =================== RENDER ===================
 
     // LOBBY PHASE
@@ -317,6 +526,7 @@ function TwinChallenge({ onBack }) {
                         <p>Challenge a friend to solve the same problem. Code side-by-side and peek at their strategy in real-time.</p>
                     </div>
 
+                    {roomClosedMsg && <div className="twin-info-msg">{roomClosedMsg}</div>}
                     {error && <div className="twin-error">{error}</div>}
 
                     <div className="twin-lobby-actions">
@@ -395,34 +605,15 @@ function TwinChallenge({ onBack }) {
                         </div>
 
                         {isOpponentConnected && (
-                            <div className="twin-problem-picker-area fade-in">
+                            <div className="twin-problem-picker-area">
                                 {!showProblemPicker ? (
                                     <button className="btn btn-generate twin-generate-btn" onClick={() => setShowProblemPicker(true)}>
                                         <Swords size={18} /> Pick a Problem
                                     </button>
                                 ) : (
-                                    <div className="twin-problem-picker">
-                                        <h3>Configure Challenge</h3>
-                                        <div className="twin-picker-row">
-                                            <label>Mode</label>
-                                            <div className="mode-toggle">
-                                                <button className={`mode-btn ${selectedMode === 'pyspark' ? 'active' : ''}`} onClick={() => setSelectedMode('pyspark')}>PySpark</button>
-                                                <button className={`mode-btn ${selectedMode === 'sql' ? 'active' : ''}`} onClick={() => setSelectedMode('sql')}>SQL</button>
-                                            </div>
-                                        </div>
-                                        <div className="twin-picker-row">
-                                            <label>Difficulty</label>
-                                            <div className="segmented-control">
-                                                {['Easy', 'Medium', 'Hard'].map(d => (
-                                                    <button key={d} className={`segment-btn ${selectedDifficulty === d ? 'active' : ''}`} onClick={() => setSelectedDifficulty(d)}>{d}</button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <button className="btn btn-generate twin-start-btn" onClick={generateProblem} disabled={generatingProblem}>
-                                            {generatingProblem ? <><Loader2 size={16} className="spinner" /> Generating...</> : <><Swords size={16} /> Start Challenge</>}
-                                        </button>
-                                    </div>
+                                    renderProblemPicker()
                                 )}
+                                {error && <div className="twin-error" style={{ marginTop: '1rem' }}>{error}</div>}
                             </div>
                         )}
                     </div>
@@ -462,25 +653,8 @@ function TwinChallenge({ onBack }) {
                 </div>
             </div>
 
-            {/* Quick Problem Picker Dropdown */}
-            {showProblemPicker && (
-                <div className="twin-quick-picker fade-in">
-                    <div className="twin-picker-row">
-                        <div className="mode-toggle">
-                            <button className={`mode-btn ${selectedMode === 'pyspark' ? 'active' : ''}`} onClick={() => setSelectedMode('pyspark')}>PySpark</button>
-                            <button className={`mode-btn ${selectedMode === 'sql' ? 'active' : ''}`} onClick={() => setSelectedMode('sql')}>SQL</button>
-                        </div>
-                        <div className="segmented-control">
-                            {['Easy', 'Medium', 'Hard'].map(d => (
-                                <button key={d} className={`segment-btn ${selectedDifficulty === d ? 'active' : ''}`} onClick={() => setSelectedDifficulty(d)}>{d}</button>
-                            ))}
-                        </div>
-                        <button className="btn btn-generate" onClick={generateProblem} disabled={generatingProblem}>
-                            {generatingProblem ? <Loader2 size={14} className="spinner" /> : 'Generate'}
-                        </button>
-                    </div>
-                </div>
-            )}
+            {/* Inline Problem Picker Dropdown */}
+            {showProblemPicker && renderProblemPicker(true)}
 
             <div className="twin-challenge-body">
                 {/* Left Panel — Problem Description */}
@@ -492,7 +666,6 @@ function TwinChallenge({ onBack }) {
                     <div className="problem-content">
                         <div className="problem-description">{problem?.description || 'Waiting for problem...'}</div>
 
-                        {/* Dataset Tables */}
                         {problem?.datasets && Object.entries(problem.datasets).map(([name, rows]) => (
                             <div key={name}>
                                 <h4 className="dataset-title">{name}</h4>
@@ -511,7 +684,6 @@ function TwinChallenge({ onBack }) {
                             </div>
                         ))}
 
-                        {/* Expected Output */}
                         {problem?.expected_output && (
                             <>
                                 <h4 className="dataset-title">Expected Output</h4>
@@ -532,7 +704,6 @@ function TwinChallenge({ onBack }) {
 
                 {/* Right Panel — Tabbed Editor */}
                 <div className="twin-right-panel">
-                    {/* Tab Bar */}
                     <div className="twin-tab-bar">
                         <button className={`twin-tab ${activeTab === 'mine' ? 'active' : ''}`} onClick={() => setActiveTab('mine')}>
                             <div className="twin-mini-avatar" style={{ width: 22, height: 22, fontSize: '0.65rem' }}>{user?.username?.[0]?.toUpperCase()}</div>
@@ -545,7 +716,6 @@ function TwinChallenge({ onBack }) {
                         </button>
                     </div>
 
-                    {/* Editor Area */}
                     <div className="twin-editor-area">
                         {activeTab === 'mine' && (
                             <div className="twin-editor-wrapper">

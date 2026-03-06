@@ -706,18 +706,32 @@ async def websocket_room(websocket: WebSocket, room_code: str, token: str = Quer
 
     except WebSocketDisconnect:
         room_manager.remove_connection(room_code.upper(), username)
+        # Notify opponent and delete room from DB
         await room_manager.broadcast(room_code.upper(), {
-            "type": "player_disconnected",
+            "type": "room_closed",
             "username": username,
-            "connected_users": room_manager.get_connected_usernames(room_code.upper())
+            "message": f"{username} left the room. Room closed."
         })
+        # Delete room from DB
+        room = db.query(models.ChallengeRoom).filter(
+            models.ChallengeRoom.room_code == room_code.upper()
+        ).first()
+        if room:
+            db.delete(room)
+            db.commit()
     except Exception:
         room_manager.remove_connection(room_code.upper(), username)
         await room_manager.broadcast(room_code.upper(), {
-            "type": "player_disconnected",
+            "type": "room_closed",
             "username": username,
-            "connected_users": room_manager.get_connected_usernames(room_code.upper())
+            "message": f"{username} disconnected. Room closed."
         })
+        room = db.query(models.ChallengeRoom).filter(
+            models.ChallengeRoom.room_code == room_code.upper()
+        ).first()
+        if room:
+            db.delete(room)
+            db.commit()
     finally:
         db.close()
 
