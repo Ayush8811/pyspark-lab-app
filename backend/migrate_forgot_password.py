@@ -19,6 +19,7 @@ migrations = [
     ("email", "ALTER TABLE users ADD COLUMN email VARCHAR"),
     ("reset_code", "ALTER TABLE users ADD COLUMN reset_code VARCHAR"),
     ("reset_code_expires", "ALTER TABLE users ADD COLUMN reset_code_expires VARCHAR"),
+    ("language", "ALTER TABLE saved_problems ADD COLUMN language VARCHAR DEFAULT 'pyspark'"),
 ]
 
 def run_migrations():
