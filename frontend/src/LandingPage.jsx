@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { Sparkles, TerminalSquare, CheckCircle, Flame, ArrowRight, User, Code, Search, LogOut, Settings, LayoutDashboard } from 'lucide-react';
+import { Sparkles, TerminalSquare, CheckCircle, Flame, ArrowRight, User, Code, Search, LogOut, Settings, LayoutDashboard, Swords } from 'lucide-react';
 import SearchResultModal from './SearchResultModal';
 import SettingsModal from './SettingsModal';
 import { API_BASE_URL } from './config';
 import './LandingPage.css';
 
-const LandingPage = ({ onStartPracticing, onShowAuthModal, onShowProfileModal, user, onLogout }) => {
+const LandingPage = ({ onStartPracticing, onStartTwinChallenge, onShowAuthModal, onShowProfileModal, user, onLogout }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [searchResult, setSearchResult] = useState(null);
@@ -180,6 +180,17 @@ const LandingPage = ({ onStartPracticing, onShowAuthModal, onShowProfileModal, u
                         <p>SELECT, JOINs, CTEs, subqueries, window functions and more. Write standard SQL that runs on real tables powered by Spark SQL.</p>
                         <div className="mode-card-cta">
                             Start SQL <ArrowRight size={16} />
+                        </div>
+                    </div>
+
+                    <div className="glass-card mode-card mode-card-twin" onClick={onStartTwinChallenge}>
+                        <div className="mode-card-icon">
+                            <Swords size={36} />
+                        </div>
+                        <h3>Twin Challenge</h3>
+                        <p>Challenge a friend to solve the same problem. Code side-by-side and peek at their strategy in real-time.</p>
+                        <div className="mode-card-cta">
+                            Start Challenge <ArrowRight size={16} />
                         </div>
                     </div>
                 </div>

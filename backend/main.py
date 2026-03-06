@@ -1,13 +1,15 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
+import json
 
 from spark_runner import execute_pyspark_code, execute_sql_code
 from ai_generator import generate_problem, generate_search_response, generate_subtopics, generate_sql_problem, generate_sql_subtopics
+from room_manager import room_manager
 
 # DB and Auth imports
 import models
@@ -519,6 +521,206 @@ def get_user_profile(current_user: models.User = Depends(get_current_user), db: 
         "activity_heatmap": activity_heatmap,
         "recent_submissions": recent_submissions
     }
+
+# ------ TWIN CHALLENGE ROUTES ------
+
+class RoomCreateRequest(BaseModel):
+    pass  # No body needed, auth provides user
+
+class RoomJoinRequest(BaseModel):
+    room_code: str
+
+@app.post("/api/room/create")
+def create_room(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Create a new challenge room. Returns the room code."""
+    room_code = room_manager.generate_room_code()
+    # Ensure uniqueness
+    while db.query(models.ChallengeRoom).filter(models.ChallengeRoom.room_code == room_code).first():
+        room_code = room_manager.generate_room_code()
+
+    new_room = models.ChallengeRoom(
+        room_code=room_code,
+        creator_id=current_user.id,
+        status="waiting",
+        created_at=datetime.utcnow().isoformat()
+    )
+    db.add(new_room)
+    db.commit()
+    db.refresh(new_room)
+
+    return {
+        "room_code": room_code,
+        "status": "waiting",
+        "creator": current_user.username
+    }
+
+@app.post("/api/room/join")
+def join_room(req: RoomJoinRequest, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Join an existing challenge room by code."""
+    room = db.query(models.ChallengeRoom).filter(
+        models.ChallengeRoom.room_code == req.room_code.upper()
+    ).first()
+
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found. Check the code and try again.")
+
+    if room.status == "finished":
+        raise HTTPException(status_code=400, detail="This room has already ended.")
+
+    if room.creator_id == current_user.id:
+        # Creator is re-joining their own room
+        return {
+            "room_code": room.room_code,
+            "status": room.status,
+            "creator": room.creator.username,
+            "joiner": room.joiner.username if room.joiner else None
+        }
+
+    if room.joiner_id and room.joiner_id != current_user.id:
+        raise HTTPException(status_code=400, detail="Room is already full.")
+
+    # Set joiner and activate room
+    room.joiner_id = current_user.id
+    room.status = "active"
+    db.commit()
+    db.refresh(room)
+
+    return {
+        "room_code": room.room_code,
+        "status": room.status,
+        "creator": room.creator.username,
+        "joiner": current_user.username
+    }
+
+@app.get("/api/room/{room_code}")
+def get_room_info(room_code: str, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get current room state."""
+    room = db.query(models.ChallengeRoom).filter(
+        models.ChallengeRoom.room_code == room_code.upper()
+    ).first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found.")
+
+    return {
+        "room_code": room.room_code,
+        "status": room.status,
+        "creator": room.creator.username,
+        "joiner": room.joiner.username if room.joiner else None,
+        "problem": room.problem_data,
+        "language": room.language,
+        "connected_users": room_manager.get_connected_usernames(room.room_code)
+    }
+
+@app.websocket("/ws/room/{room_code}")
+async def websocket_room(websocket: WebSocket, room_code: str, token: str = Query(...)):
+    """
+    WebSocket endpoint for real-time Twin Challenge communication.
+    Auth via JWT token in query params.
+    """
+    # Authenticate via token
+    payload = auth.decode_access_token(token)
+    if not payload:
+        await websocket.close(code=4001)
+        return
+    username = payload.get("sub")
+    if not username:
+        await websocket.close(code=4001)
+        return
+
+    # Validate room exists in DB
+    db = next(get_db())
+    room = db.query(models.ChallengeRoom).filter(
+        models.ChallengeRoom.room_code == room_code.upper()
+    ).first()
+    if not room:
+        await websocket.close(code=4004)
+        return
+
+    await websocket.accept()
+    room_manager.register_connection(room_code.upper(), username, websocket)
+
+    # Notify others that this user connected
+    await room_manager.broadcast(room_code.upper(), {
+        "type": "player_connected",
+        "username": username,
+        "connected_users": room_manager.get_connected_usernames(room_code.upper())
+    }, exclude=username)
+
+    # Send current room state to the connecting user
+    await room_manager.send_to_user(room_code.upper(), username, {
+        "type": "room_state",
+        "connected_users": room_manager.get_connected_usernames(room_code.upper()),
+        "problem": room.problem_data,
+        "language": room.language,
+        "opponent_code": room_manager.get_opponent_code(room_code.upper(), username)
+    })
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+            msg_type = data.get("type")
+
+            if msg_type == "code_update":
+                # User's code changed — store and broadcast to opponent
+                code = data.get("code", "")
+                room_manager.update_code(room_code.upper(), username, code)
+                await room_manager.broadcast(room_code.upper(), {
+                    "type": "opponent_code",
+                    "username": username,
+                    "code": code
+                }, exclude=username)
+
+            elif msg_type == "set_problem":
+                # A player selected a problem — save to DB and broadcast
+                problem = data.get("problem")
+                language = data.get("language", "pyspark")
+                room = db.query(models.ChallengeRoom).filter(
+                    models.ChallengeRoom.room_code == room_code.upper()
+                ).first()
+                if room:
+                    room.problem_data = problem
+                    room.language = language
+                    db.commit()
+                await room_manager.broadcast(room_code.upper(), {
+                    "type": "problem_set",
+                    "problem": problem,
+                    "language": language,
+                    "set_by": username
+                })
+
+            elif msg_type == "run_result":
+                # Share run results with opponent
+                await room_manager.broadcast(room_code.upper(), {
+                    "type": "opponent_run_result",
+                    "username": username,
+                    "result": data.get("result")
+                }, exclude=username)
+
+            elif msg_type == "submit_result":
+                # Share submit results with opponent
+                await room_manager.broadcast(room_code.upper(), {
+                    "type": "opponent_submit_result",
+                    "username": username,
+                    "result": data.get("result")
+                }, exclude=username)
+
+    except WebSocketDisconnect:
+        room_manager.remove_connection(room_code.upper(), username)
+        await room_manager.broadcast(room_code.upper(), {
+            "type": "player_disconnected",
+            "username": username,
+            "connected_users": room_manager.get_connected_usernames(room_code.upper())
+        })
+    except Exception:
+        room_manager.remove_connection(room_code.upper(), username)
+        await room_manager.broadcast(room_code.upper(), {
+            "type": "player_disconnected",
+            "username": username,
+            "connected_users": room_manager.get_connected_usernames(room_code.upper())
+        })
+    finally:
+        db.close()
+
 
 if __name__ == "__main__":
     import uvicorn

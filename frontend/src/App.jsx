@@ -8,6 +8,7 @@ import AuthModal from './AuthModal';
 import ProfileDashboard from './ProfileDashboard';
 import LandingPage from './LandingPage';
 import AILoadingOverlay from './AILoadingOverlay';
+import TwinChallenge from './TwinChallenge';
 import { useDeviceType } from './hooks/useDeviceType';
 import { API_BASE_URL } from './config';
 
@@ -510,6 +511,7 @@ function App() {
             setActiveIndex(-1);
             setCurrentView('ide');
           }}
+          onStartTwinChallenge={() => setCurrentView('twin')}
           onShowAuthModal={() => setShowAuthModal(true)}
           onShowProfileModal={() => setShowProfileModal(true)}
           user={user}
@@ -518,6 +520,10 @@ function App() {
         {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
       </>
     );
+  }
+
+  if (currentView === 'twin') {
+    return <TwinChallenge onBack={() => setCurrentView('landing')} />;
   }
 
   return (

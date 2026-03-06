@@ -54,3 +54,19 @@ class ActivityLog(Base):
     
     # Link to parent
     owner = relationship("User", back_populates="activity_logs")
+
+class ChallengeRoom(Base):
+    __tablename__ = "challenge_rooms"
+
+    id = Column(Integer, primary_key=True, index=True)
+    room_code = Column(String, unique=True, index=True)
+    creator_id = Column(Integer, ForeignKey("users.id"))
+    joiner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    status = Column(String, default="waiting")  # waiting | active | finished
+    problem_data = Column(JSON, nullable=True)  # full problem payload
+    language = Column(String, default="pyspark")  # pyspark | sql
+    created_at = Column(String)  # ISO timestamp
+
+    creator = relationship("User", foreign_keys=[creator_id])
+    joiner = relationship("User", foreign_keys=[joiner_id])
+

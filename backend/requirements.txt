@@ -16,4 +16,5 @@ bcrypt
 google-auth
 requests
 pandas>=2.2.0
+websockets
 # Auto-sync enabled
