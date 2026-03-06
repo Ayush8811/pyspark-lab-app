@@ -704,6 +704,23 @@ async def websocket_room(websocket: WebSocket, room_code: str, token: str = Quer
                     "result": data.get("result")
                 }, exclude=username)
 
+            elif msg_type == "chat_message":
+                # Relay chat message to opponent
+                await room_manager.broadcast(room_code.upper(), {
+                    "type": "chat_message",
+                    "username": username,
+                    "message": data.get("message", ""),
+                    "timestamp": datetime.utcnow().isoformat()
+                }, exclude=username)
+
+            # --- WebRTC Signaling (voice chat) ---
+            elif msg_type in ("webrtc_offer", "webrtc_answer", "webrtc_ice_candidate"):
+                # Forward signaling messages directly to the other player
+                await room_manager.broadcast(room_code.upper(), {
+                    "type": msg_type,
+                    "username": username,
+                    "data": data.get("data")
+                }, exclude=username)
     except WebSocketDisconnect:
         room_manager.remove_connection(room_code.upper(), username)
         # Notify opponent and delete room from DB

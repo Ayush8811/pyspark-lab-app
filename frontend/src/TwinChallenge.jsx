@@ -5,7 +5,7 @@ import Editor from '@monaco-editor/react';
 import axios from 'axios';
 import {
     Copy, Check, Users, ArrowLeft, Play, Loader2, Send, Wifi, WifiOff,
-    Swords, Crown, UserPlus, LogOut, Tags, X
+    Swords, Crown, UserPlus, LogOut, Tags, X, MessageCircle, Mic, MicOff, Phone, PhoneOff
 } from 'lucide-react';
 import './TwinChallenge.css';
 
@@ -86,6 +86,20 @@ function TwinChallenge({ onBack }) {
     const [activeTopic, setActiveTopic] = useState(null);   // topic with subtopic picker open
     const [subtopicSuggestions, setSubtopicSuggestions] = useState([]);
     const [loadingSubtopics, setLoadingSubtopics] = useState(false);
+
+    // --- Chat State ---
+    const [chatMessages, setChatMessages] = useState([]);
+    const [chatInput, setChatInput] = useState('');
+    const [showChat, setShowChat] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const chatEndRef = useRef(null);
+
+    // --- Voice State ---
+    const [voiceActive, setVoiceActive] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
+    const peerConnectionRef = useRef(null);
+    const localStreamRef = useRef(null);
+    const remoteAudioRef = useRef(null);
 
     // WebSocket ref
     const wsRef = useRef(null);
@@ -173,6 +187,27 @@ function TwinChallenge({ onBack }) {
                 case 'opponent_submit_result':
                     setOpponentResult({ ...msg.result, type: 'submit' });
                     break;
+
+                case 'chat_message':
+                    setChatMessages(prev => [...prev, {
+                        sender: msg.username,
+                        message: msg.message,
+                        timestamp: msg.timestamp,
+                        isMe: false
+                    }]);
+                    setUnreadCount(prev => prev + 1);
+                    break;
+
+                // WebRTC signaling
+                case 'webrtc_offer':
+                    handleWebRTCOffer(msg.data);
+                    break;
+                case 'webrtc_answer':
+                    handleWebRTCAnswer(msg.data);
+                    break;
+                case 'webrtc_ice_candidate':
+                    handleWebRTCIceCandidate(msg.data);
+                    break;
             }
         };
 
@@ -185,11 +220,22 @@ function TwinChallenge({ onBack }) {
         };
     }, [token]);
 
+    // Auto-scroll chat
+    useEffect(() => {
+        if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }, [chatMessages]);
+
+    // Reset unread when chat is opened
+    useEffect(() => {
+        if (showChat) setUnreadCount(0);
+    }, [showChat]);
+
     // Cleanup on unmount
     useEffect(() => {
         return () => {
             if (wsRef.current) wsRef.current.close();
             if (codeUpdateTimer.current) clearTimeout(codeUpdateTimer.current);
+            endVoiceCall();
         };
     }, []);
 
@@ -242,6 +288,7 @@ function TwinChallenge({ onBack }) {
     };
 
     const leaveRoom = () => {
+        endVoiceCall();
         if (wsRef.current) wsRef.current.close();
         setPhase('lobby');
         setRoomCode('');
@@ -252,6 +299,137 @@ function TwinChallenge({ onBack }) {
         setMyResult(null);
         setOpponentResult(null);
         setConnectedUsers([]);
+        setChatMessages([]);
+    };
+
+    // --- Chat ---
+    const sendChatMessage = () => {
+        const msg = chatInput.trim();
+        if (!msg || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(JSON.stringify({ type: 'chat_message', message: msg }));
+        setChatMessages(prev => [...prev, {
+            sender: user?.username,
+            message: msg,
+            timestamp: new Date().toISOString(),
+            isMe: true
+        }]);
+        setChatInput('');
+    };
+
+    // --- Voice (WebRTC) ---
+    const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    const createPeerConnection = () => {
+        const pc = new RTCPeerConnection(ICE_SERVERS);
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate && wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({
+                    type: 'webrtc_ice_candidate',
+                    data: event.candidate
+                }));
+            }
+        };
+
+        pc.ontrack = (event) => {
+            if (remoteAudioRef.current) {
+                remoteAudioRef.current.srcObject = event.streams[0];
+            }
+        };
+
+        peerConnectionRef.current = pc;
+        return pc;
+    };
+
+    const startVoiceCall = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            localStreamRef.current = stream;
+
+            const pc = createPeerConnection();
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({
+                    type: 'webrtc_offer',
+                    data: offer
+                }));
+            }
+
+            setVoiceActive(true);
+            setIsMuted(false);
+        } catch (err) {
+            console.error('Failed to start voice:', err);
+            setError('Could not access microphone.');
+        }
+    };
+
+    const handleWebRTCOffer = async (offer) => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            localStreamRef.current = stream;
+
+            const pc = createPeerConnection();
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({
+                    type: 'webrtc_answer',
+                    data: answer
+                }));
+            }
+
+            setVoiceActive(true);
+            setIsMuted(false);
+        } catch (err) {
+            console.error('Failed to answer voice call:', err);
+        }
+    };
+
+    const handleWebRTCAnswer = async (answer) => {
+        if (peerConnectionRef.current) {
+            await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+        }
+    };
+
+    const handleWebRTCIceCandidate = async (candidate) => {
+        if (peerConnectionRef.current) {
+            try {
+                await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (err) {
+                console.error('ICE candidate error:', err);
+            }
+        }
+    };
+
+    const endVoiceCall = () => {
+        if (peerConnectionRef.current) {
+            peerConnectionRef.current.close();
+            peerConnectionRef.current = null;
+        }
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach(t => t.stop());
+            localStreamRef.current = null;
+        }
+        setVoiceActive(false);
+        setIsMuted(false);
+    };
+
+    const toggleMute = () => {
+        if (localStreamRef.current) {
+            const audioTrack = localStreamRef.current.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                setIsMuted(!audioTrack.enabled);
+            }
+        }
     };
 
     // --- Code Sync ---
@@ -822,6 +1000,68 @@ function TwinChallenge({ onBack }) {
                     </div>
                 </div>
             </div>
+
+            {/* Hidden audio element for WebRTC remote audio */}
+            <audio ref={remoteAudioRef} autoPlay />
+
+            {/* Voice Controls (floating) */}
+            <div className="twin-voice-controls">
+                {!voiceActive ? (
+                    <button className="twin-voice-btn twin-voice-start" onClick={startVoiceCall} title="Start Voice Call">
+                        <Phone size={18} />
+                    </button>
+                ) : (
+                    <>
+                        <button className={`twin-voice-btn ${isMuted ? 'twin-voice-muted' : 'twin-voice-active'}`} onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'}>
+                            {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+                        </button>
+                        <button className="twin-voice-btn twin-voice-end" onClick={endVoiceCall} title="End Call">
+                            <PhoneOff size={18} />
+                        </button>
+                    </>
+                )}
+            </div>
+
+            {/* Chat Toggle Button */}
+            <button className="twin-chat-toggle" onClick={() => setShowChat(!showChat)}>
+                <MessageCircle size={20} />
+                {unreadCount > 0 && <span className="twin-chat-badge">{unreadCount}</span>}
+            </button>
+
+            {/* Chat Panel (slide-in) */}
+            {showChat && (
+                <div className="twin-chat-panel fade-in">
+                    <div className="twin-chat-header">
+                        <h3><MessageCircle size={16} /> Chat</h3>
+                        <button className="icon-btn" onClick={() => setShowChat(false)}><X size={16} /></button>
+                    </div>
+                    <div className="twin-chat-messages">
+                        {chatMessages.length === 0 && (
+                            <div className="twin-chat-empty">No messages yet. Say hi! 👋</div>
+                        )}
+                        {chatMessages.map((msg, i) => (
+                            <div key={i} className={`twin-chat-msg ${msg.isMe ? 'twin-chat-mine' : 'twin-chat-theirs'}`}>
+                                <span className="twin-chat-sender">{msg.isMe ? 'You' : msg.sender}</span>
+                                <span className="twin-chat-text">{msg.message}</span>
+                            </div>
+                        ))}
+                        <div ref={chatEndRef} />
+                    </div>
+                    <div className="twin-chat-input-row">
+                        <input
+                            type="text"
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()}
+                            placeholder="Type a message..."
+                            className="twin-chat-input"
+                        />
+                        <button className="twin-chat-send" onClick={sendChatMessage}>
+                            <Send size={16} />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
