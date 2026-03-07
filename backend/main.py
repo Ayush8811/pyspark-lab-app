@@ -759,6 +759,279 @@ async def websocket_room(websocket: WebSocket, room_code: str, token: str = Quer
         db.close()
 
 
+# ------ PRACTICE LIST ROUTES ------
+
+TRACK_METADATA = {
+    "window_functions": {
+        "track_name": "Window Functions",
+        "description": "Master ROW_NUMBER, RANK, LAG, LEAD, running totals, and more with 18 curated real-world problems."
+    }
+}
+
+def _grade_submission(user_rows, expected_rows):
+    """Shared grading logic: returns (passed: bool, message: str, user_output)."""
+    if len(user_rows) != len(expected_rows):
+        return False, f"Row count mismatch. Expected {len(expected_rows)}, got {len(user_rows)}.", user_rows
+
+    def normalize_val(v):
+        if v is None:
+            return "None"
+        try:
+            fv = float(v)
+            if fv.is_integer():
+                return str(int(fv))
+            return str(fv)
+        except (ValueError, TypeError):
+            return str(v)
+
+    def sort_rows(rows):
+        return sorted(rows, key=lambda r: str(sorted([(k, normalize_val(v)) for k, v in r.items()])))
+
+    user_rows_sorted = sort_rows(user_rows)
+    expected_rows_sorted = sort_rows(expected_rows)
+
+    for u_row, e_row in zip(user_rows_sorted, expected_rows_sorted):
+        for key, expected_val in e_row.items():
+            if key not in u_row:
+                return False, f"Missing column '{key}' in your output.", user_rows
+            if normalize_val(u_row[key]) != normalize_val(expected_val):
+                return False, f"Data mismatch. Expected '{expected_val}' for column '{key}', got '{u_row[key]}'.", user_rows
+
+    return True, "All test cases passed!", user_rows
+
+
+@app.get("/api/practice-list/tracks")
+def get_practice_tracks(user: Optional[models.User] = Depends(get_optional_user), db: Session = Depends(get_db)):
+    """List available practice tracks with progress counts."""
+    from sqlalchemy import func
+    track_counts = db.query(
+        models.PracticeListProblem.track, func.count(models.PracticeListProblem.id)
+    ).group_by(models.PracticeListProblem.track).all()
+
+    result = []
+    for track_id, total in track_counts:
+        meta = TRACK_METADATA.get(track_id, {"track_name": track_id, "description": ""})
+        solved_count = 0
+        if user:
+            solved_count = db.query(func.count(func.distinct(models.PracticeListProgress.problem_id))).join(
+                models.PracticeListProblem
+            ).filter(
+                models.PracticeListProgress.user_id == user.id,
+                models.PracticeListProblem.track == track_id
+            ).scalar() or 0
+        result.append({
+            "track_id": track_id,
+            "track_name": meta["track_name"],
+            "description": meta["description"],
+            "total_problems": total,
+            "solved_count": solved_count,
+        })
+    return result
+
+
+@app.get("/api/practice-list/problems")
+def get_practice_problems(
+    track: str,
+    window_function_type: Optional[str] = None,
+    difficulty: Optional[str] = None,
+    user: Optional[models.User] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """List problems for a track, with optional filters and solved status."""
+    query = db.query(models.PracticeListProblem).filter(models.PracticeListProblem.track == track)
+    if window_function_type:
+        query = query.filter(models.PracticeListProblem.window_function_type == window_function_type)
+    if difficulty:
+        query = query.filter(models.PracticeListProblem.difficulty == difficulty)
+    problems = query.order_by(models.PracticeListProblem.order_index).all()
+
+    # Get user's progress for this track
+    solved_map = {}
+    if user:
+        progress = db.query(models.PracticeListProgress).filter(
+            models.PracticeListProgress.user_id == user.id
+        ).all()
+        for p in progress:
+            key = p.problem_id
+            if key not in solved_map:
+                solved_map[key] = {"pyspark": False, "sql": False}
+            solved_map[key][p.language] = True
+
+    result = []
+    for prob in problems:
+        s = solved_map.get(prob.id, {"pyspark": False, "sql": False})
+        result.append({
+            "id": prob.id,
+            "track": prob.track,
+            "title": prob.title,
+            "difficulty": prob.difficulty,
+            "window_function_type": prob.window_function_type,
+            "use_case_category": prob.use_case_category,
+            "order_index": prob.order_index,
+            "solved_pyspark": s["pyspark"],
+            "solved_sql": s["sql"],
+        })
+    return result
+
+
+@app.get("/api/practice-list/problems/{problem_id}")
+def get_practice_problem_detail(
+    problem_id: int,
+    user: Optional[models.User] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """Get full problem data for the IDE view."""
+    prob = db.query(models.PracticeListProblem).filter(models.PracticeListProblem.id == problem_id).first()
+    if not prob:
+        raise HTTPException(status_code=404, detail="Problem not found")
+
+    solved_pyspark = False
+    solved_sql = False
+    if user:
+        for lang in ["pyspark", "sql"]:
+            exists = db.query(models.PracticeListProgress).filter(
+                models.PracticeListProgress.user_id == user.id,
+                models.PracticeListProgress.problem_id == problem_id,
+                models.PracticeListProgress.language == lang
+            ).first()
+            if exists:
+                if lang == "pyspark":
+                    solved_pyspark = True
+                else:
+                    solved_sql = True
+
+    datasets = prob.datasets
+    expected_output = prob.expected_output
+    if isinstance(datasets, str):
+        datasets = json.loads(datasets)
+    if isinstance(expected_output, str):
+        expected_output = json.loads(expected_output)
+
+    return {
+        "id": prob.id,
+        "track": prob.track,
+        "title": prob.title,
+        "description": prob.description,
+        "difficulty": prob.difficulty,
+        "window_function_type": prob.window_function_type,
+        "use_case_category": prob.use_case_category,
+        "order_index": prob.order_index,
+        "datasets": datasets,
+        "expected_output": expected_output,
+        "initial_code_pyspark": prob.initial_code_pyspark,
+        "initial_code_sql": prob.initial_code_sql,
+        "solved_pyspark": solved_pyspark,
+        "solved_sql": solved_sql,
+    }
+
+
+@app.get("/api/practice-list/problems/{problem_id}/solution")
+def get_practice_problem_solution(problem_id: int, db: Session = Depends(get_db)):
+    """Get solution code and explanation."""
+    prob = db.query(models.PracticeListProblem).filter(models.PracticeListProblem.id == problem_id).first()
+    if not prob:
+        raise HTTPException(status_code=404, detail="Problem not found")
+    return {
+        "solution_code_pyspark": prob.solution_code_pyspark,
+        "solution_code_sql": prob.solution_code_sql,
+        "explanation": prob.explanation,
+    }
+
+
+@app.post("/api/practice-list/problems/{problem_id}/submit")
+def submit_practice_problem(
+    problem_id: int,
+    req: schemas.PracticeListSubmitRequest,
+    user: Optional[models.User] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """Submit code for a practice list problem, grade it, and track progress."""
+    prob = db.query(models.PracticeListProblem).filter(models.PracticeListProblem.id == problem_id).first()
+    if not prob:
+        raise HTTPException(status_code=404, detail="Problem not found")
+
+    # Execute code
+    if req.language == "sql":
+        result = execute_sql_code(req.code, req.datasets)
+    else:
+        result = execute_pyspark_code(req.code, req.datasets)
+
+    if not result["success"]:
+        return {
+            "success": False,
+            "passed": False,
+            "user_output": None,
+            "message": "Execution failed. Check your syntax.",
+            "problem_id": problem_id,
+        }
+
+    if result["final_df_rows"] is None:
+        msg = ("Grading failed: No result returned from your query."
+               if req.language == "sql"
+               else "Grading failed: Could not find a 'final_df' variable. Did you assign your final result to 'final_df'?")
+        return {
+            "success": True,
+            "passed": False,
+            "user_output": None,
+            "message": msg,
+            "problem_id": problem_id,
+        }
+
+    passed, message, user_output = _grade_submission(result["final_df_rows"], req.expected_output)
+
+    if passed and user:
+        # Record progress (upsert — skip if already solved)
+        existing = db.query(models.PracticeListProgress).filter(
+            models.PracticeListProgress.user_id == user.id,
+            models.PracticeListProgress.problem_id == problem_id,
+            models.PracticeListProgress.language == req.language,
+        ).first()
+        if not existing:
+            progress = models.PracticeListProgress(
+                user_id=user.id,
+                problem_id=problem_id,
+                language=req.language,
+                solved_at=datetime.utcnow().isoformat(),
+            )
+            db.add(progress)
+
+        # Also log to ActivityLog for streak/XP tracking
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        new_log = models.ActivityLog(
+            user_id=user.id, date=today_str,
+            difficulty=req.difficulty, problem_title=req.title
+        )
+        db.add(new_log)
+        db.commit()
+
+    return {
+        "success": True,
+        "passed": passed,
+        "user_output": user_output,
+        "message": message,
+        "problem_id": problem_id,
+    }
+
+
+@app.get("/api/practice-list/progress")
+def get_practice_progress(
+    track: str,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get user's progress for a specific track."""
+    progress = db.query(models.PracticeListProgress).join(
+        models.PracticeListProblem
+    ).filter(
+        models.PracticeListProgress.user_id == current_user.id,
+        models.PracticeListProblem.track == track
+    ).all()
+    return [
+        {"problem_id": p.problem_id, "language": p.language, "solved_at": p.solved_at}
+        for p in progress
+    ]
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

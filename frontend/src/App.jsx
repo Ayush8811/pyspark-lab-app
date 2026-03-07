@@ -9,6 +9,7 @@ import ProfileDashboard from './ProfileDashboard';
 import LandingPage from './LandingPage';
 import AILoadingOverlay from './AILoadingOverlay';
 import TwinChallenge from './TwinChallenge';
+import PracticeList from './PracticeList';
 import { useDeviceType } from './hooks/useDeviceType';
 import { API_BASE_URL } from './config';
 
@@ -416,17 +417,34 @@ function App() {
     setSubmitting(true);
     updateActiveProblem({ result: null });
 
-    const submitEndpoint = activeProblem.language === 'sql'
-      ? `${API_BASE_URL}/api/sql/problem/submit`
-      : `${API_BASE_URL}/api/problem/submit`;
+    let submitEndpoint, payload;
 
-    try {
-      const res = await axios.post(submitEndpoint, {
+    if (activeProblem.practiceListId) {
+      // Practice list problem — use dedicated endpoint
+      submitEndpoint = `${API_BASE_URL}/api/practice-list/problems/${activeProblem.practiceListId}/submit`;
+      payload = {
+        code: activeProblem.userCode,
+        language: activeProblem.language || 'pyspark',
+        datasets: activeProblem.datasets || {},
+        expected_output: activeProblem.expected_output || [],
+        difficulty: activeProblem.difficulty || 'Medium',
+        title: activeProblem.title || 'Unknown Problem',
+      };
+    } else {
+      // Standard AI-generated problem
+      submitEndpoint = activeProblem.language === 'sql'
+        ? `${API_BASE_URL}/api/sql/problem/submit`
+        : `${API_BASE_URL}/api/problem/submit`;
+      payload = {
         code: activeProblem.userCode,
         datasets: activeProblem.datasets || {},
         expected_output: activeProblem.expected_output || [],
-        difficulty: activeProblem.difficulty || 'Medium'
-      }, {
+        difficulty: activeProblem.difficulty || 'Medium',
+      };
+    }
+
+    try {
+      const res = await axios.post(submitEndpoint, payload, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       // Flag as a generic submit grading result
@@ -512,6 +530,7 @@ function App() {
             setCurrentView('ide');
           }}
           onStartTwinChallenge={() => setCurrentView('twin')}
+          onNavigateToPracticeList={() => setCurrentView('practice-list')}
           onShowAuthModal={() => setShowAuthModal(true)}
           onShowProfileModal={() => setShowProfileModal(true)}
           user={user}
@@ -524,6 +543,36 @@ function App() {
 
   if (currentView === 'twin') {
     return <TwinChallenge onBack={() => setCurrentView('landing')} />;
+  }
+
+  if (currentView === 'practice-list') {
+    return (
+      <>
+        <PracticeList
+          onBack={() => setCurrentView('landing')}
+          onOpenProblem={(problem, lang) => {
+            const ideProblem = {
+              ux_id: `practice-${problem.id}`,
+              title: problem.title,
+              description: problem.description,
+              difficulty: problem.difficulty,
+              datasets: problem.datasets,
+              expected_output: problem.expected_output,
+              initial_code: lang === 'sql' ? problem.initial_code_sql : problem.initial_code_pyspark,
+              userCode: lang === 'sql' ? problem.initial_code_sql : problem.initial_code_pyspark,
+              result: null,
+              language: lang,
+              practiceListId: problem.id,
+            };
+            setCodingMode(lang);
+            setProblems([ideProblem]);
+            setActiveIndex(0);
+            setCurrentView('ide');
+          }}
+        />
+        {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+      </>
+    );
   }
 
   return (
@@ -539,7 +588,10 @@ function App() {
         <div className="sidebar-header">
           <div
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-            onClick={() => setCurrentView('landing')}
+            onClick={() => {
+              const fromPracticeList = problems.length > 0 && problems[0]?.practiceListId;
+              setCurrentView(fromPracticeList ? 'practice-list' : 'landing');
+            }}
           >
             <Sparkles size={18} style={{ color: 'var(--accent)' }} />
             {sidebarOpen && <span style={{ fontWeight: 600 }}>Practice</span>}

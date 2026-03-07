@@ -21,6 +21,7 @@ class User(Base):
 
     saved_problems = relationship("SavedProblem", back_populates="owner")
     activity_logs = relationship("ActivityLog", back_populates="owner")
+    practice_progress = relationship("PracticeListProgress", back_populates="user")
 
 class SavedProblem(Base):
     __tablename__ = "saved_problems"
@@ -69,4 +70,45 @@ class ChallengeRoom(Base):
 
     creator = relationship("User", foreign_keys=[creator_id])
     joiner = relationship("User", foreign_keys=[joiner_id])
+
+class PracticeListProblem(Base):
+    __tablename__ = "practice_list_problems"
+
+    id = Column(Integer, primary_key=True, index=True)
+    track = Column(String, index=True)  # e.g., "window_functions"
+
+    # Problem metadata
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=False)  # Markdown
+    difficulty = Column(String, nullable=False)  # "Easy" | "Medium" | "Hard"
+    window_function_type = Column(String, nullable=False)  # "ROW_NUMBER", "RANK", etc.
+    use_case_category = Column(String, nullable=False)  # "E-Commerce", "HR", etc.
+    order_index = Column(Integer, default=0)
+
+    # Problem data
+    datasets = Column(JSON, nullable=False)
+    expected_output = Column(JSON, nullable=False)
+
+    # PySpark variant
+    initial_code_pyspark = Column(Text, nullable=False)
+    solution_code_pyspark = Column(Text, nullable=False)
+
+    # SQL variant
+    initial_code_sql = Column(Text, nullable=False)
+    solution_code_sql = Column(Text, nullable=False)
+
+    # Explanation
+    explanation = Column(Text, nullable=False)  # Markdown
+
+class PracticeListProgress(Base):
+    __tablename__ = "practice_list_progress"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    problem_id = Column(Integer, ForeignKey("practice_list_problems.id"), nullable=False)
+    language = Column(String, nullable=False)  # "pyspark" | "sql"
+    solved_at = Column(String, nullable=False)  # ISO timestamp
+
+    user = relationship("User", back_populates="practice_progress")
+    problem = relationship("PracticeListProblem")
 

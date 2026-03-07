@@ -22,6 +22,6 @@ COPY . .
 EXPOSE 7860
 
 # Run FastAPI when the container launches
-CMD ["sh", "-c", "python migrate_forgot_password.py && uvicorn main:app --host 0.0.0.0 --port 7860"]
+CMD ["sh", "-c", "python migrate_forgot_password.py && python migrate_practice_list.py && python seed_practice_list.py && uvicorn main:app --host 0.0.0.0 --port 7860"]
 
 

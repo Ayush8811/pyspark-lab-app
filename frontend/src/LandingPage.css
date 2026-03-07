@@ -703,3 +703,22 @@
 .mode-card-twin .mode-card-cta {
     color: #fb923c;
 }
+
+/* Practice List Card */
+.mode-card-practice {
+    border-color: rgba(16, 185, 129, 0.4);
+}
+
+.mode-card-practice:hover {
+    border-color: #10b981;
+    box-shadow: 0 0 24px rgba(16, 185, 129, 0.2);
+}
+
+.mode-card-practice .mode-card-icon {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.mode-card-practice .mode-card-cta {
+    color: #10b981;
+}

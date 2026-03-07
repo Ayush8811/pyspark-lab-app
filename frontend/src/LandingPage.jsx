@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { Sparkles, TerminalSquare, CheckCircle, Flame, ArrowRight, User, Code, Search, LogOut, Settings, LayoutDashboard, Swords } from 'lucide-react';
+import { Sparkles, TerminalSquare, CheckCircle, Flame, ArrowRight, User, Code, Search, LogOut, Settings, LayoutDashboard, Swords, ListChecks } from 'lucide-react';
 import SearchResultModal from './SearchResultModal';
 import SettingsModal from './SettingsModal';
 import { API_BASE_URL } from './config';
 import './LandingPage.css';
 
-const LandingPage = ({ onStartPracticing, onStartTwinChallenge, onShowAuthModal, onShowProfileModal, user, onLogout }) => {
+const LandingPage = ({ onStartPracticing, onStartTwinChallenge, onNavigateToPracticeList, onShowAuthModal, onShowProfileModal, user, onLogout }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [searchResult, setSearchResult] = useState(null);
@@ -76,6 +76,7 @@ const LandingPage = ({ onStartPracticing, onStartTwinChallenge, onShowAuthModal,
                     <a href="#" className="active">Home</a>
                     <a href="#features">Features</a>
                     <a href="#" onClick={(e) => { e.preventDefault(); onStartPracticing('pyspark'); }}>Sandbox</a>
+                    <a href="#" onClick={(e) => { e.preventDefault(); onNavigateToPracticeList(); }}>Practice</a>
                 </div>
 
                 <div className="nav-auth">
@@ -98,6 +99,9 @@ const LandingPage = ({ onStartPracticing, onStartTwinChallenge, onShowAuthModal,
                                     </div>
                                     <button className="dropdown-item" onClick={() => { setShowDropdown(false); onShowProfileModal(); }}>
                                         <LayoutDashboard size={14} /> My Dashboard
+                                    </button>
+                                    <button className="dropdown-item" onClick={() => { setShowDropdown(false); onNavigateToPracticeList(); }}>
+                                        <ListChecks size={14} /> Practice List
                                     </button>
                                     <button className="dropdown-item" onClick={() => { setShowDropdown(false); setShowSettingsModal(true); }}>
                                         <Settings size={14} /> Settings
@@ -191,6 +195,17 @@ const LandingPage = ({ onStartPracticing, onStartTwinChallenge, onShowAuthModal,
                         <p>Challenge a friend to solve the same problem. Code side-by-side and peek at their strategy in real-time.</p>
                         <div className="mode-card-cta">
                             Start Challenge <ArrowRight size={16} />
+                        </div>
+                    </div>
+
+                    <div className="glass-card mode-card mode-card-practice" onClick={onNavigateToPracticeList}>
+                        <div className="mode-card-icon">
+                            <ListChecks size={36} />
+                        </div>
+                        <h3>Practice List</h3>
+                        <p>Curated problem tracks to master specific concepts. Start with Window Functions — 18 real-world problems with solutions.</p>
+                        <div className="mode-card-cta">
+                            Start Track <ArrowRight size={16} />
                         </div>
                     </div>
                 </div>
