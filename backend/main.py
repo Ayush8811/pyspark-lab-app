@@ -226,12 +226,12 @@ class ExecuteRequest(BaseModel):
     datasets: Dict[str, List[Dict[str, Any]]]
 
 @app.get("/api/topics/subtopics")
-def get_subtopics(topic: str, difficulty: str = "Medium", exclude: str = None):
+def get_subtopics(topic: str, difficulty: str = "Medium", exclude: str = None, current_user: models.User = Depends(get_current_user)):
     subtopics = generate_subtopics(topic, difficulty, exclude)
     return {"subtopics": subtopics}
 
 @app.get("/api/problem/generate")
-def get_problem(topic: str = "general", difficulty: str = "Medium"):
+def get_problem(topic: str = "general", difficulty: str = "Medium", current_user: models.User = Depends(get_current_user)):
     return generate_problem(topic, difficulty)
 
 class SubmitRequest(BaseModel):
@@ -327,23 +327,23 @@ def submit_code(req: SubmitRequest, user: Optional[models.User] = Depends(get_op
     }
 
 @app.post("/api/search")
-def search_pyspark(req: schemas.SearchQuery):
+def search_pyspark(req: schemas.SearchQuery, current_user: models.User = Depends(get_current_user)):
     """Phase 10: Semantic PySpark Search via LLM."""
     if not req.query or len(req.query.strip()) == 0:
         raise HTTPException(status_code=400, detail="Query cannot be empty")
-        
+
     response_markdown = generate_search_response(req.query.strip())
     return {"markdown": response_markdown}
 
 # ------ SQL ROUTES ------
 
 @app.get("/api/sql/topics/subtopics")
-def get_sql_subtopics(topic: str, difficulty: str = "Medium", exclude: str = None):
+def get_sql_subtopics(topic: str, difficulty: str = "Medium", exclude: str = None, current_user: models.User = Depends(get_current_user)):
     subtopics = generate_sql_subtopics(topic, difficulty, exclude)
     return {"subtopics": subtopics}
 
 @app.get("/api/sql/problem/generate")
-def get_sql_problem(topic: str = "general", difficulty: str = "Medium"):
+def get_sql_problem(topic: str = "general", difficulty: str = "Medium", current_user: models.User = Depends(get_current_user)):
     return generate_sql_problem(topic, difficulty)
 
 class SqlExecuteRequest(BaseModel):

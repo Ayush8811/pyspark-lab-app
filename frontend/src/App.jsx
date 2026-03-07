@@ -163,7 +163,8 @@ function App() {
 
     try {
       const res = await axios.get(subtopicsEndpoint, {
-        params: { topic: topicObj.label, difficulty: selectedDifficulty }
+        params: { topic: topicObj.label, difficulty: selectedDifficulty },
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       setDynamicSubtopics(res.data.subtopics);
     } catch (err) {
@@ -182,7 +183,8 @@ function App() {
         ? `${API_BASE_URL}/api/sql/topics/subtopics`
         : `${API_BASE_URL}/api/topics/subtopics`;
       const res = await axios.get(subtopicsEndpoint, {
-        params: { topic: activeTopic.label, difficulty: selectedDifficulty, exclude: excludeStr }
+        params: { topic: activeTopic.label, difficulty: selectedDifficulty, exclude: excludeStr },
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       // Append the new unique subtopics to existing ones
       setDynamicSubtopics(prev => [...prev, ...res.data.subtopics]);
@@ -245,7 +247,8 @@ function App() {
 
     try {
       const res = await axios.get(generateEndpoint, {
-        params: { topic: combinedTopics, difficulty: selectedDifficulty }
+        params: { topic: combinedTopics, difficulty: selectedDifficulty },
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
 
       const newProblem = {
@@ -276,7 +279,8 @@ function App() {
         : `${API_BASE_URL}/api/problem/generate`;
       const initTopic = codingMode === 'sql' ? 'SELECT & WHERE' : 'Joins';
       axios.get(initEndpoint, {
-        params: { topic: initTopic, difficulty: 'Easy' }
+        params: { topic: initTopic, difficulty: 'Easy' },
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
       }).then(res => {
         setProblems([{
           ...res.data,
@@ -534,6 +538,7 @@ function App() {
           onShowAuthModal={() => setShowAuthModal(true)}
           onShowProfileModal={() => setShowProfileModal(true)}
           user={user}
+          token={token}
           onLogout={logout}
         />
         {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}

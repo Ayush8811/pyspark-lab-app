@@ -6,7 +6,7 @@ import SettingsModal from './SettingsModal';
 import { API_BASE_URL } from './config';
 import './LandingPage.css';
 
-const LandingPage = ({ onStartPracticing, onStartTwinChallenge, onNavigateToPracticeList, onShowAuthModal, onShowProfileModal, user, onLogout }) => {
+const LandingPage = ({ onStartPracticing, onStartTwinChallenge, onNavigateToPracticeList, onShowAuthModal, onShowProfileModal, user, token, onLogout }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [searchResult, setSearchResult] = useState(null);
@@ -39,6 +39,8 @@ const LandingPage = ({ onStartPracticing, onStartTwinChallenge, onNavigateToPrac
         try {
             const res = await axios.post(`${API_BASE_URL}/api/search`, {
                 query: searchQuery
+            }, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
             });
             setSearchResult(res.data.markdown);
         } catch (err) {

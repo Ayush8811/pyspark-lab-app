@@ -468,7 +468,7 @@ function TwinChallenge({ onBack }) {
                 const endpoint = selectedMode === 'sql'
                     ? `${API_BASE_URL}/api/sql/subtopics`
                     : `${API_BASE_URL}/api/subtopics`;
-                const res = await axios.get(endpoint, { params: { topic: topic.label } });
+                const res = await axios.get(endpoint, { params: { topic: topic.label }, headers: token ? { Authorization: `Bearer ${token}` } : {} });
                 setSubtopicSuggestions(res.data.subtopics || []);
             } catch {
                 setSubtopicSuggestions([]);
@@ -512,7 +512,8 @@ function TwinChallenge({ onBack }) {
                 ? `${API_BASE_URL}/api/sql/problem/generate`
                 : `${API_BASE_URL}/api/problem/generate`;
             const res = await axios.get(endpoint, {
-                params: { topic: combinedTopics, difficulty: selectedDifficulty }
+                params: { topic: combinedTopics, difficulty: selectedDifficulty },
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
             });
 
             // Send problem to both players via WebSocket
