@@ -85,32 +85,57 @@ const LandingPage = ({ onStartPracticing, onStartTwinChallenge, onNavigateToPrac
                     {user ? (
                         <div className="user-menu-container" ref={dropdownRef}>
                             <button
-                                className="icon-btn"
-                                style={{ padding: '0.4rem', color: 'var(--accent)', background: 'rgba(168, 85, 247, 0.1)', marginRight: '1rem' }}
+                                className="user-avatar-btn"
                                 onClick={() => setShowDropdown(!showDropdown)}
                             >
-                                <User size={20} />
+                                <div className="user-avatar-circle">
+                                    {(user.name || user.username || 'U')[0].toUpperCase()}
+                                </div>
+                                <span className="user-avatar-name">{user.name || user.username}</span>
+                                <svg className={`user-avatar-chevron ${showDropdown ? 'open' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                             </button>
 
                             {/* User Dropdown Menu */}
                             {showDropdown && (
                                 <div className="user-dropdown">
                                     <div className="dropdown-header">
-                                        <div className="user-name">{user.name || user.username}</div>
-                                        <div className="user-role">@{user.username}</div>
+                                        <div className="dropdown-avatar-large">
+                                            {(user.name || user.username || 'U')[0].toUpperCase()}
+                                        </div>
+                                        <div className="dropdown-header-info">
+                                            <div className="user-name">{user.name || user.username}</div>
+                                            <div className="user-role">@{user.username}</div>
+                                        </div>
                                     </div>
-                                    <button className="dropdown-item" onClick={() => { setShowDropdown(false); onShowProfileModal(); }}>
-                                        <LayoutDashboard size={14} /> My Dashboard
-                                    </button>
-                                    <button className="dropdown-item" onClick={() => { setShowDropdown(false); onNavigateToPracticeList(); }}>
-                                        <ListChecks size={14} /> Practice List
-                                    </button>
-                                    <button className="dropdown-item" onClick={() => { setShowDropdown(false); setShowSettingsModal(true); }}>
-                                        <Settings size={14} /> Settings
-                                    </button>
-                                    <button className="dropdown-item logout" onClick={() => { setShowDropdown(false); onLogout(); }}>
-                                        <LogOut size={14} /> Sign Out
-                                    </button>
+                                    <div className="dropdown-section">
+                                        <button className="dropdown-item" onClick={() => { setShowDropdown(false); onShowProfileModal(); }}>
+                                            <div className="dropdown-item-icon"><LayoutDashboard size={15} /></div>
+                                            <div className="dropdown-item-text">
+                                                <span>My Dashboard</span>
+                                                <span className="dropdown-item-sub">Stats & activity</span>
+                                            </div>
+                                        </button>
+                                        <button className="dropdown-item" onClick={() => { setShowDropdown(false); onNavigateToPracticeList(); }}>
+                                            <div className="dropdown-item-icon"><ListChecks size={15} /></div>
+                                            <div className="dropdown-item-text">
+                                                <span>Practice List</span>
+                                                <span className="dropdown-item-sub">Window Functions track</span>
+                                            </div>
+                                        </button>
+                                        <button className="dropdown-item" onClick={() => { setShowDropdown(false); setShowSettingsModal(true); }}>
+                                            <div className="dropdown-item-icon"><Settings size={15} /></div>
+                                            <div className="dropdown-item-text">
+                                                <span>Settings</span>
+                                                <span className="dropdown-item-sub">Preferences & account</span>
+                                            </div>
+                                        </button>
+                                    </div>
+                                    <div className="dropdown-footer">
+                                        <button className="dropdown-item logout" onClick={() => { setShowDropdown(false); onLogout(); }}>
+                                            <div className="dropdown-item-icon"><LogOut size={15} /></div>
+                                            <span>Sign Out</span>
+                                        </button>
+                                    </div>
                                 </div>
                             )}
 
