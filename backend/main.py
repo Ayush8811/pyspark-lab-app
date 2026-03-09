@@ -6,6 +6,9 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 from spark_runner import execute_pyspark_code, execute_sql_code
 from ai_generator import generate_problem, generate_search_response, generate_subtopics, generate_sql_problem, generate_sql_subtopics
@@ -20,6 +23,7 @@ from email_utils import send_recovery_email
 
 import os
 import random
+import secrets
 import string
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -31,12 +35,15 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="PySpark Platform API")
 
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "")
+_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()] if _raw_origins else []
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_allowed_origins,
+    allow_credentials=bool(_allowed_origins),  # Only allow credentials when origins are explicitly set
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -50,7 +57,8 @@ def get_optional_user(token: Optional[str] = Depends(optional_oauth2_scheme), db
         if not payload:
             return None
         return db.query(models.User).filter(models.User.username == payload.get("sub")).first()
-    except:
+    except Exception:
+        logger.exception("Unexpected error in get_optional_user")
         return None
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -156,8 +164,9 @@ def google_login(req: GoogleTokenRequest, db: Session = Depends(get_db)):
         access_token = auth.create_access_token(data={"sub": user.username})
         return {"access_token": access_token, "token_type": "bearer"}
         
-    except ValueError as e:
-        raise HTTPException(status_code=401, detail=f"Invalid Google token: {str(e)}")
+    except ValueError:
+        logger.exception("Google token verification failed")
+        raise HTTPException(status_code=401, detail="Google authentication failed. Please try again.")
 
 @app.put("/api/user/settings", response_model=schemas.UserResponse)
 def update_user_settings(settings: schemas.UserSettingsUpdate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -181,8 +190,8 @@ def forgot_password(req: schemas.ForgotPasswordRequest, db: Session = Depends(ge
         # Don't leak if email exists, just return success
         return {"success": True, "message": "If that email exists, a reset code was sent."}
         
-    # Generate 6 digit code
-    code = ''.join(random.choices(string.digits, k=6))
+    # Generate a cryptographically secure reset token (32 URL-safe bytes → 43 chars)
+    code = secrets.token_urlsafe(32)
     
     # Set expiration to 15 mins from now
     expires = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
@@ -242,7 +251,7 @@ class SubmitRequest(BaseModel):
     title: Optional[str] = "Unknown Problem"
 
 @app.post("/api/problem/execute")
-def execute_code(req: ExecuteRequest):
+def execute_code(req: ExecuteRequest, current_user: models.User = Depends(get_current_user)):
     return execute_pyspark_code(req.code, req.datasets)
 
 @app.post("/api/problem/submit")
@@ -351,7 +360,7 @@ class SqlExecuteRequest(BaseModel):
     datasets: Dict[str, List[Dict[str, Any]]]
 
 @app.post("/api/sql/problem/execute")
-def execute_sql(req: SqlExecuteRequest):
+def execute_sql(req: SqlExecuteRequest, current_user: models.User = Depends(get_current_user)):
     return execute_sql_code(req.code, req.datasets)
 
 class SqlSubmitRequest(BaseModel):

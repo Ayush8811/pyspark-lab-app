@@ -1,11 +1,11 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field
 from typing import Optional, Dict, Any, List
 import json
 
 class UserCreate(BaseModel):
-    username: str
-    email: Optional[str] = None
-    password: str
+    username: str = Field(min_length=3, max_length=50)
+    email: Optional[str] = Field(default=None, max_length=254)
+    password: str = Field(min_length=8, max_length=128)
 
 class SearchQuery(BaseModel):
     query: str
@@ -22,9 +22,9 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 class UserSettingsUpdate(BaseModel):
-    name: Optional[str] = None
-    age: Optional[int] = None
-    bio: Optional[str] = None
+    name: Optional[str] = Field(default=None, max_length=100)
+    age: Optional[int] = Field(default=None, ge=0, le=150)
+    bio: Optional[str] = Field(default=None, max_length=5000)
 
 class Token(BaseModel):
     access_token: str
