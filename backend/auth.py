@@ -3,9 +3,15 @@ from datetime import datetime, timedelta
 from passlib.context import CryptContext
 import jwt
 
-SECRET_KEY = os.getenv("JWT_SECRET", "super-secret-local-key-change-in-prod")
+_jwt_secret = os.getenv("JWT_SECRET")
+if not _jwt_secret:
+    raise RuntimeError(
+        "JWT_SECRET environment variable is not set. "
+        "Set it to a strong random secret before starting the server."
+    )
+SECRET_KEY = _jwt_secret
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 1 week
+ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
 
 # By default, passlib has a compatibility bug with bcrypt >= 4.0.0 during its internal check sequence.
 # To bypass, we can use raw bcrypt instead of the passlib wrapper for hashing to avoid truncation crashes.
